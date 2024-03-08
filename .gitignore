@@ -72,3 +72,11 @@ Plugins/*/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+# 에셋 주요 파일
+Content/Asset/*
+Content/Art/*
+
+# 빌드 데이터 파일
+*_BuiltData.uasset
+/Content/StarterContent
