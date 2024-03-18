@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "AnotherWorldStreet.h"
 #include "GameFramework/GameModeBase.h"
 #include "AnotherWorldStreetGameModeBase.generated.h"
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "AnotherWorldStreetGameModeBase.h"
+#include "../public/AnotherWorldStreetGameModeBase.h"
 
 void AAnotherWorldStreetGameModeBase::BeginPlay()
 {
