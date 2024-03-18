@@ -36,6 +36,6 @@ public:
 
 protected:	
 	//마지막 생성 결과
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 		FMapInfoStruct LastGenerateResult;
 };
