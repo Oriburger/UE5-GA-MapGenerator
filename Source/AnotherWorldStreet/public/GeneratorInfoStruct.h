@@ -24,7 +24,7 @@ public:
 
 //Edge Info
 USTRUCT(BlueprintType)
-struct FEdgeStruct
+struct FEdgeInfoStruct
 {
 public:
 	GENERATED_USTRUCT_BODY()
@@ -50,7 +50,6 @@ public:
 		TArray<FTransform> TransformList;
 };
 
-
 //Chromosome
 USTRUCT(BlueprintType)
 struct FMapInfoStruct
@@ -64,11 +63,11 @@ public:
 
 	//간선 정보 리스트 (잇는 스태틱 메시와 그것의 Transform)
 	//반드시 정점 개수만큼 초기화해서 쓸 것.
-	//EdgeInfoList[0].AdjacencyList  --> 0과 연결된 모든 정점 목록
+	//EdgeInfoList[0].AdjacencyList  --> 0과 연결된 모든 정점 목록 {1, 2, 3}
 	//EdgeInfoList[1].DistanceList[0];  --> 1과 연결된 첫번째 정점까지의 거리
 	//양방향이기에 반대도 무조건 처리해야함.
 	UPROPERTY(BlueprintReadWrite)
-		TArray<FEdgeStruct>	EdgeInfoList;
+		TArray<FEdgeInfoStruct>	EdgeInfoList;
 
 	//총 Fitness 값
 	UPROPERTY(BlueprintReadWrite)
