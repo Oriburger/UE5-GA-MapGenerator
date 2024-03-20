@@ -7,10 +7,20 @@
 #include "MapGeneratorBase.generated.h"
 
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDelegateGAProgressUpdated, int32, CurrentGen, float, Progress, float, BestFitness);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDelegateGAProcessEnd, FVector, StartLocation, float, TotalElapsedTime);
+
 UCLASS()
 class ANOTHERWORLDSTREET_API AMapGeneratorBase : public AActor
 {
 	GENERATED_BODY()
+//======= Delegate ===============================
+public:
+	UPROPERTY(BlueprintAssignable, VisibleAnywhere, BlueprintCallable)
+		FDelegateGAProgressUpdated OnGAUpdatedProgress;
+
+	UPROPERTY(BlueprintAssignable, VisibleAnywhere, BlueprintCallable)
+		FDelegateGAProcessEnd OnGAEndProcess;
 
 //======= Basic Event & Component ================
 public:	
@@ -54,7 +64,7 @@ public:
 public:
 	//총 학습 세대 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0, UIMax = 100000))
-		int32 GenerationThresold = 100;
+		int32 GenerationThresold = 1000;
 
 	//집단 구성하는 염색체 수
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0, UIMax = 1000))
@@ -81,10 +91,23 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "GA Debug")
 		FPopulationStruct CurrentPopulationInfo;
 
+	//총 경과 시간 (학습 종료 시점에 갱신)
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "GA Debug")
+		float TotalElapsedTime = 1e9;	
+
+private:
+	//1틱에 모든 세대의 학습을 돌리지 않게 하기 위한 타이머 핸들
+	//(거의) 1틱마다 나눠서 한 세대씩 학습을 돌림
+	UPROPERTY()
+		FTimerHandle GenerationDelayHandle;
+
+	UPROPERTY()
+		FTimerHandle GAElapsedTimeHandle;
+
 //======= GA Function ================
 public:
 	UFUNCTION(BlueprintCallable)
-		FVector RunGeneticAlgorithm();
+		void RunGeneticAlgorithm();
 
 private:
 	UFUNCTION()
