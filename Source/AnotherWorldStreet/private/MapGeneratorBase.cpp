@@ -28,20 +28,47 @@ void AMapGeneratorBase::Tick(float DeltaTime)
 
 }
 
-FVector AMapGeneratorBase::RunGeneticAlgorithm()
+void AMapGeneratorBase::RunGeneticAlgorithm()
 {
-	CreateInitialMap();
-
-	/*
-	for(CurrentGen = 1; CurrentGen <= Thresold; CurrentGen++
+	//=== 최초 모집단 생성 =======================
+	if (CurrentGen == 0)
 	{
-		//Operation~~
+		//초기 모집단을 생성하고 
+		CreateInitialMap();
+
+		//학습을 시작한다
+		CurrentGen += 1;
+		GetWorldTimerManager().SetTimer(GAElapsedTimeHandle, 1e9, true, 0.0f);
+		RunGeneticAlgorithm();
 	}
-	*/
+	//=== 마지막 세대 =======================
+	if (CurrentGen >= GenerationThresold)
+	{
+		//경과시간을 구하고 타이머를 반환한다.
+		TotalElapsedTime = GetWorldTimerManager().GetTimerElapsed(GAElapsedTimeHandle);
+		GetWorldTimerManager().ClearTimer(GAElapsedTimeHandle);
+		GAElapsedTimeHandle.Invalidate();
+		GenerationDelayHandle.Invalidate();
 
-	Visualize(CurrentPopulationInfo.BestResultMap);
+		//맵 시각화를 진행한다. 
+		Visualize(CurrentPopulationInfo.BestResultMap);
 
-	return StartLocation;
+		//알고리즘이 종료되었다고 이벤트를 활성화한다.
+		OnGAEndProcess.Broadcast(StartLocation, TotalElapsedTime);
+	}
+	//=== 학습 세대 =======================
+	else if(CurrentGen > 0)
+	{
+		//~ 학습 과정 ~
+
+		//세대를 하나 늘리고, 진행도 업데이트 이벤트를 활성화시킨다.
+		CurrentGen += 1;
+		TotalElapsedTime = FMath::Min(TotalElapsedTime, FMath::RandRange(2150.0f, 50000.0f)); //임시 코드
+		OnGAUpdatedProgress.Broadcast(CurrentGen, (float)CurrentGen / (float)GenerationThresold, TotalElapsedTime);
+
+		//다음 세대의 학습을 다음 틱에서 진행한다.
+		GetWorldTimerManager().SetTimer(GenerationDelayHandle, this, &AMapGeneratorBase::RunGeneticAlgorithm, 0.001f, false);	
+	}
 }
 
 float AMapGeneratorBase::CalculateFitness()
