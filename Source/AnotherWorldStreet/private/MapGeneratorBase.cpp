@@ -50,7 +50,7 @@ void AMapGeneratorBase::RunGeneticAlgorithm()
 		GAElapsedTimeHandle.Invalidate();
 		GenerationDelayHandle.Invalidate();
 
-		//맵 시각화를 진행한다. 
+		//맵 시각화를 진행한다.	
 		Visualize(CurrentPopulationInfo.BestResultMap);
 
 		//알고리즘이 종료되었다고 이벤트를 활성화한다.
@@ -93,6 +93,7 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 
 void AMapGeneratorBase::SetInitialPopulation(FMapInfoStruct MapInfo)
 {
+	CurrentPopulationInfo.BestResultMap = MapInfo;
 }
 
 void AMapGeneratorBase::Repair(FPopulationStruct& Result)

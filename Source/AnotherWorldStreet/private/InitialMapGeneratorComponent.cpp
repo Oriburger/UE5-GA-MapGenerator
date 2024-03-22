@@ -28,5 +28,5 @@ void UInitialMapGeneratorComponent::TickComponent(float DeltaTime, ELevelTick Ti
 void UInitialMapGeneratorComponent::Generate_Implementation()
 {
 	//BP Native Event
-	//필요시에만 네이티브 코드를 추가하세요	
+	//필요시에만 네이티브 코드를 추가하세요
 }

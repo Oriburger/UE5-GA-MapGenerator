@@ -96,3 +96,20 @@ public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "GA Debug")
 		float FitnessAverage;
 };
+
+USTRUCT(BlueprintType)
+struct FPoint3D
+{
+public:
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "3D Point")
+		float x;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "3D Point")
+		float y;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "3D Point")
+		float z;
+};
+
