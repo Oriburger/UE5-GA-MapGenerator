@@ -2,6 +2,7 @@
 
 
 #include "../public/MapGeneratorBase.h"
+#include "Kismet/KismetMathLibrary.h"
 
 // Sets default values
 AMapGeneratorBase::AMapGeneratorBase()
@@ -59,7 +60,16 @@ void AMapGeneratorBase::RunGeneticAlgorithm()
 	//=== 학습 세대 =======================
 	else if(CurrentGen > 0)
 	{
-		//~ 학습 과정 ~
+		//~~ 적합도 연산 ~~
+		CurrentPopulationInfo.BestFitnessValue = CalculateFitness();
+
+		//~~ 선택 ~~
+		SelectParents();
+
+		//~~ 학습 과정 ~~
+		//Crossover()
+		//Mutate()
+		//Repair()
 
 		//세대를 하나 늘리고, 진행도 업데이트 이벤트를 활성화시킨다.
 		CurrentGen += 1;
@@ -73,12 +83,68 @@ void AMapGeneratorBase::RunGeneticAlgorithm()
 
 float AMapGeneratorBase::CalculateFitness()
 {
-	return 0.0f;
+	//적합도는 반드시 낮아야한다. 좋지 않은 상황에서 더 더하는 방식
+	//적합도 계산 가중치 (도합 1), 높은 가중치 = 반드시 지켜져야하는 룰
+	const float outOfRangeWeight = 0.5f; //플랫폼이 파라미터로 지정한 범위 외부에 있는지에 대한 가중치
+	const float unreachableWeight = 0.3f; //플레이어가 도달 불가능한 플랫폼이 있는지에 대한 가중치
+	const float difficultyWeight = 0.2f; //난이도가 적합하지 않은것에 대한 가중치
+
+	float bestFitness = (float)1e9;
+
+	//모집단의 모든 멤버에 대해 수행
+	for (int32 mapIdx = 0; mapIdx < CurrentPopulationInfo.Population.Num(); mapIdx++)
+	{
+		FMapInfoStruct& currentMap = CurrentPopulationInfo.Population[mapIdx];
+		float newFitness = 0.0f;
+
+		//----[ 유효성 체크 ]---------------
+		for (int32 platformIdx = 0; platformIdx < currentMap.PlatformInfoList.Num(); platformIdx++)
+		{
+			FPlatformInfoStruct curr = currentMap.PlatformInfoList[platformIdx];
+			FVector currLocation = curr.PlatformTransform.GetLocation();
+
+			//범위 외부에 있는지?
+			if (currLocation.X < StartLocation.X && currLocation.X > EndLocation.X
+				|| currLocation.Y < StartLocation.Y && currLocation.Y > EndLocation.Y
+				|| currLocation.Z < StartLocation.Z && currLocation.Z > EndLocation.Z)
+			{
+				//표면까지의 거리를 구하는 공식으로 수정해야함 
+				newFitness += outOfRangeWeight * UKismetMathLibrary::Vector_Distance(currLocation, (StartLocation + EndLocation) / 2);
+			}
+
+			if (platformIdx > 0)
+			{
+				FPlatformInfoStruct prev = currentMap.PlatformInfoList[platformIdx - 1];
+				FVector prevLocation = prev.PlatformTransform.GetLocation();
+				float distance = UKismetMathLibrary::Vector_Distance(prevLocation, currLocation);
+
+				//float GetCanReachDistance(StartPos, EndPos, JumpSpeed, Velocity, Gravity) // 착지까지의 거리
+
+				//도달 불가능한 노드가 있는지?
+
+				//난이도와 얼마나 차이가 나는지?
+			}
+		}
+		bestFitness = FMath::Min(bestFitness, currentMap.TotalFitness = newFitness);
+	}
+
+	return bestFitness;
 }
 
-float AMapGeneratorBase::SelectParents()
+void AMapGeneratorBase::SelectParents()
 {
-	return 0.0f;
+	//~~ 오름차순 정렬 ~~
+	CurrentPopulationInfo.Population.Sort([](const FMapInfoStruct& m1, const FMapInfoStruct& m2) {
+		return m1.TotalFitness < m2.TotalFitness;
+	});
+	
+	//상위 n개를 고름
+	FPopulationStruct tempPopulation;
+	for (int32 idx = 0; idx < PopulationSize; idx++)
+	{
+		tempPopulation.Population.Add(CurrentPopulationInfo.Population[idx]);
+	}
+	CurrentPopulationInfo = tempPopulation;
 }
 
 FMapInfoStruct AMapGeneratorBase::Crossover(const FMapInfoStruct& child1, const FMapInfoStruct& child2)
@@ -93,6 +159,7 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 
 void AMapGeneratorBase::SetInitialPopulation(FMapInfoStruct MapInfo)
 {
+	CurrentPopulationInfo.BestResultMap = MapInfo;
 }
 
 void AMapGeneratorBase::Repair(FPopulationStruct& Result)

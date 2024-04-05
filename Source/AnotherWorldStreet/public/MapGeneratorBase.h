@@ -114,7 +114,7 @@ private:
 		float CalculateFitness();
 
 	UFUNCTION()
-		float SelectParents();
+		void SelectParents();
 
 	UFUNCTION()
 		FMapInfoStruct Crossover(const FMapInfoStruct& child1, const FMapInfoStruct& child2);
