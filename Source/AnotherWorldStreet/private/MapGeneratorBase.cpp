@@ -61,10 +61,10 @@ void AMapGeneratorBase::RunGeneticAlgorithm()
 	else if(CurrentGen > 0)
 	{
 		//~~ 적합도 연산 ~~
-		CurrentPopulationInfo.BestFitnessValue = CalculateFitness();
+		//CurrentPopulationInfo.BestFitnessValue = CalculateFitness();
 
 		//~~ 선택 ~~
-		SelectParents();
+		//SelectParents();
 
 		//~~ 학습 과정 ~~
 		//Crossover()
@@ -122,6 +122,7 @@ float AMapGeneratorBase::CalculateFitness()
 
 				//도달 불가능한 노드가 있는지?
 
+
 				//난이도와 얼마나 차이가 나는지?
 			}
 		}
@@ -162,6 +163,66 @@ void AMapGeneratorBase::SetInitialPopulation(FMapInfoStruct MapInfo)
 	CurrentPopulationInfo.BestResultMap = MapInfo;
 }
 
+bool AMapGeneratorBase::GetCanReach(FVector JumpVelocity, FVector Start, FVector End, float& ErrorDist, float GravityScale)
+{
+	// 원점 상대적으로 좌표 변환
+	End = End - Start;
+	End = { End.GetAbs().X, End.GetAbs().Y, End.Z};
+	Start = FVector::ZeroVector;
+
+	ErrorDist = 0.0f;
+
+	//점프 속력도 절대 벡터로 변환
+	//JumpVelocity = { JumpVelocity.GetAbs();
+
+	//중력가속도 초기화
+	GravityScale *= 980.0f;
+
+	// 발사체의 초기 위치와 도착 지점 사이의 거리
+	float DistanceToTarget = FVector::Dist(Start, End);
+
+	// 최고 높이까지의 도달 시간을 계산
+	float VerticalTime = JumpVelocity.Z / (GravityScale * 0.5f);
+
+	// 도달할 수 있는 가장 높은 지점
+	float HighestHeight = FMath::Pow(JumpVelocity.Z, 2) / (GravityScale * 2.0f) + 40.0f;
+
+	// 수평 방향으로 이동할 거리 계산
+	float HorizontalDistance = JumpVelocity.X * VerticalTime;
+
+
+	UE_LOG(LogTemp, Warning, TEXT("h dist : %.2lf, hightest : %.2lf, time : %.2lf, gravity : %.2lf"), HorizontalDistance, HighestHeight, VerticalTime, GravityScale);
+
+	// 도착 지점과의 거리가 발사체가 이동할 수 있는 거리보다 짧다면 도달 가능
+	float tolerance = 5.0f;
+	
+	if (HighestHeight < End.Z || DistanceToTarget > HorizontalDistance + tolerance) return false;
+
+	float targetTime = DistanceToTarget / JumpVelocity.X;
+	float targetTimeVelocity = 0.0f; 
+	float targetTimeHeight = 0.0f;
+
+	if (targetTime < VerticalTime / 2.0f)
+	{
+		targetTimeVelocity = JumpVelocity.Z - GravityScale * targetTime;
+		targetTimeHeight = HighestHeight - (targetTimeVelocity * 0.5f * (VerticalTime / 2.0f - targetTime) * 0.5f);
+		UE_LOG(LogTemp, Warning, TEXT("target1) time : %.2lf, velo : %.2lf, height : %.2lf"), targetTime, targetTimeVelocity, targetTimeHeight);
+	}
+	else
+	{
+		targetTimeVelocity = JumpVelocity.Z - GravityScale * targetTime;
+		targetTimeHeight = HighestHeight + (targetTimeVelocity * 0.5f * FMath::Abs(targetTime - VerticalTime / 2.0f) * 0.5f);
+		UE_LOG(LogTemp, Warning, TEXT("target2) time : %.2lf, velo : %.2lf, height : %.2lf"), targetTime, targetTimeVelocity, targetTimeHeight);
+	}
+
+
+	if (targetTimeHeight >= End.Z) return true; 
+
+	ErrorDist = DistanceToTarget - HorizontalDistance;
+	return false;
+}
+
 void AMapGeneratorBase::Repair(FPopulationStruct& Result)
 {
+	
 }

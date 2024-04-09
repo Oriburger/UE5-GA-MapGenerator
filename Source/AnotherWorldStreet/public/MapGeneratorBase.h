@@ -140,4 +140,8 @@ public:
 protected:
 	UFUNCTION(BlueprintCallable)
 		void SetInitialPopulation(FMapInfoStruct MapInfo);
+
+//======= Fitness Condition Functions ================
+	UFUNCTION(BlueprintCallable)
+		bool GetCanReach(FVector JumpVelocity, FVector Start, FVector End, float& ErrorDist, float GravityScale = 3.0f);
 };
