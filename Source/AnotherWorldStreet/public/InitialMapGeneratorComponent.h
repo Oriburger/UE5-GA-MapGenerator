@@ -34,8 +34,47 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 		FMapInfoStruct GetLastResult() { return LastGenerateResult; }
 
+
+//======== FPoint 3D ===============
+public:
+	//Bezier curve 조절점의 FVector 구조체
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Control points")
+		TArray<FVector> ControlPoints;
+
+		//Bezier Curve 점 좌표들의 FVector 구조체
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Control points")
+		TArray<FVector> CurvePoints;
+
+//============ 초기모집단 생성 관련 UFUNCTION ============
+public:
+	//control point 랜덤 생성 함수
+	UFUNCTION()
+		FVector GenControlPoint();
+
+	UFUNCTION()
+		void GenBezierCurve(FVector Start, FVector End, int32 GenPointNum, int32 ControlPointNum);
+
+
 protected:	
 	//마지막 생성 결과
 	UPROPERTY(BlueprintReadWrite)
 		FMapInfoStruct LastGenerateResult;
+
+	//Gen_Control_Point함수 결과값
+	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gen Control point")
+	//	FVector ControlPoint;
+
+	//Fvector (Start, End) Location
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Location Setting")
+		FVector StartLoc;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Location Setting")
+		FVector EndLoc;
+
+
+	//UPROPERTY(BlueprintReadOnly)
+	//	UStaticMesh StaticMeshInfo;
+
+	UPROPERTY(BlueprintReadWrite)
+		FPlatformInfoStruct PlatformInfoResult;
 };
