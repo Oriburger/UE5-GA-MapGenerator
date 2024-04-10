@@ -114,10 +114,10 @@ private:
 		float CalculateFitness();
 
 	UFUNCTION()
-		float SelectParents();
+		void SelectParents();
 
 	UFUNCTION()
-		FMapInfoStruct Crossover(const FMapInfoStruct& child1, const FMapInfoStruct& child2);
+		FPopulationStruct Crossover();
 
 	UFUNCTION()
 		bool Mutate(FMapInfoStruct& child);
@@ -139,5 +139,24 @@ public:
 
 protected:
 	UFUNCTION(BlueprintCallable)
-		void SetInitialPopulation(FMapInfoStruct MapInfo);
+		void SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList);
+
+//======= Fitness Condition Functions ================
+	UFUNCTION(BlueprintCallable)
+		bool GetCanReach(FVector JumpVelocity, FVector Start, FVector End, float& ErrorDist, float GravityScale = 3.0f);
+
+	UFUNCTION(BlueprintCallable)
+		bool IsPointInsideCuboid(const FVector& PointA, const FVector& PointB, const FVector& TestPoint);
+//======== Property ==================================
+private:
+	UPROPERTY()
+		class ACharacter* PlayerRef;
+
+	//캐릭터 무브먼트의 MaxWalkSpeed와 JumpZVelocity를 따름
+	UPROPERTY()
+		FVector JumpVelocity;
+
+	//캐릭터 무브먼트의 
+	UPROPERTY()
+		float GravityMultipiler;
 };
