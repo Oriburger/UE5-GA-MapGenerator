@@ -20,6 +20,13 @@ void AMapGeneratorBase::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	PlayerRef = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
+	if (IsValid(PlayerRef))
+	{
+		JumpVelocity.X = PlayerRef->GetCharacterMovement()->MaxWalkSpeed;
+		JumpVelocity.Z = PlayerRef->GetCharacterMovement()->JumpZVelocity;
+		GravityMultipiler = PlayerRef->GetCharacterMovement()->GravityScale;
+	}
 }
 
 // Called every frame
@@ -61,13 +68,13 @@ void AMapGeneratorBase::RunGeneticAlgorithm()
 	else if(CurrentGen > 0)
 	{
 		//~~ 적합도 연산 ~~
-		//CurrentPopulationInfo.BestFitnessValue = CalculateFitness();
+		CurrentPopulationInfo.BestFitnessValue = CalculateFitness();
 
 		//~~ 선택 ~~
-		//SelectParents();
+		SelectParents();
 
 		//~~ 학습 과정 ~~
-		//Crossover()
+		//Crossover();
 		//Mutate()
 		//Repair()
 
@@ -85,9 +92,10 @@ float AMapGeneratorBase::CalculateFitness()
 {
 	//적합도는 반드시 낮아야한다. 좋지 않은 상황에서 더 더하는 방식
 	//적합도 계산 가중치 (도합 1), 높은 가중치 = 반드시 지켜져야하는 룰
-	const float outOfRangeWeight = 0.5f; //플랫폼이 파라미터로 지정한 범위 외부에 있는지에 대한 가중치
-	const float unreachableWeight = 0.3f; //플레이어가 도달 불가능한 플랫폼이 있는지에 대한 가중치
-	const float difficultyWeight = 0.2f; //난이도가 적합하지 않은것에 대한 가중치
+	const float outOfRangeWeight = 0.6f; //플랫폼이 파라미터로 지정한 범위 외부에 있는지에 대한 가중치
+	const float outOfRangeValue = 99999.0f; 
+	const float unreachableWeight = 0.35f; //플레이어가 도달 불가능한 플랫폼이 있는지에 대한 가중치
+	const float difficultyWeight = 0.05f; //난이도가 적합하지 않은것에 대한 가중치
 
 	float bestFitness = (float)1e9;
 
@@ -107,28 +115,37 @@ float AMapGeneratorBase::CalculateFitness()
 			if (currLocation.X < StartLocation.X && currLocation.X > EndLocation.X
 				|| currLocation.Y < StartLocation.Y && currLocation.Y > EndLocation.Y
 				|| currLocation.Z < StartLocation.Z && currLocation.Z > EndLocation.Z)
-			{
-				//표면까지의 거리를 구하는 공식으로 수정해야함 
-				newFitness += outOfRangeWeight * UKismetMathLibrary::Vector_Distance(currLocation, (StartLocation + EndLocation) / 2);
+			{		
+				newFitness += outOfRangeWeight * outOfRangeValue;
 			}
-
+			
 			if (platformIdx > 0)
 			{
 				FPlatformInfoStruct prev = currentMap.PlatformInfoList[platformIdx - 1];
 				FVector prevLocation = prev.PlatformTransform.GetLocation();
 				float distance = UKismetMathLibrary::Vector_Distance(prevLocation, currLocation);
 
-				//float GetCanReachDistance(StartPos, EndPos, JumpSpeed, Velocity, Gravity) // 착지까지의 거리
-
 				//도달 불가능한 노드가 있는지?
-
+				float errorValue = 0.0f;
+				bool result = GetCanReach(JumpVelocity, prevLocation, currLocation, errorValue, GravityMultipiler);
+				newFitness += (errorValue * unreachableWeight);
 
 				//난이도와 얼마나 차이가 나는지?
+				const float errorThreshold = 100.0f;
+				if (result)
+				{
+					if (!LevelPerJumpDistThreshold.IsValidIndex(MapLevel))
+					{
+						UE_LOG(LogTemp, Error, TEXT("Fitness() : LevelPerJumpDistThreshold %d Data is missing."), MapLevel);
+						continue;
+					}
+					errorValue = FMath::Min(errorThreshold, FMath::Abs(distance - LevelPerJumpDistThreshold[MapLevel]));
+					newFitness += (errorValue * difficultyWeight);
+				}
 			}
 		}
 		bestFitness = FMath::Min(bestFitness, currentMap.TotalFitness = newFitness);
 	}
-
 	return bestFitness;
 }
 
@@ -148,9 +165,9 @@ void AMapGeneratorBase::SelectParents()
 	CurrentPopulationInfo = tempPopulation;
 }
 
-FMapInfoStruct AMapGeneratorBase::Crossover(const FMapInfoStruct& child1, const FMapInfoStruct& child2)
+FPopulationStruct AMapGeneratorBase::Crossover()
 {
-	return FMapInfoStruct(); 
+	return FPopulationStruct();
 }
 
 bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
@@ -161,19 +178,19 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 void AMapGeneratorBase::SetInitialPopulation(FMapInfoStruct MapInfo)
 {
 	CurrentPopulationInfo.BestResultMap = MapInfo;
+	for (int32 idx = 0; idx < PopulationSize; idx++)
+	{
+		CurrentPopulationInfo.Population.Add(MapInfo);
+	}
 }
 
-bool AMapGeneratorBase::GetCanReach(FVector JumpVelocity, FVector Start, FVector End, float& ErrorDist, float GravityScale)
+bool AMapGeneratorBase::GetCanReach(FVector StartVelocity, FVector Start, FVector End, float& ErrorDist, float GravityScale)
 {
 	// 원점 상대적으로 좌표 변환
 	End = End - Start;
 	End = { End.GetAbs().X, End.GetAbs().Y, End.Z};
 	Start = FVector::ZeroVector;
-
 	ErrorDist = 0.0f;
-
-	//점프 속력도 절대 벡터로 변환
-	//JumpVelocity = { JumpVelocity.GetAbs();
 
 	//중력가속도 초기화
 	GravityScale *= 980.0f;
@@ -182,44 +199,65 @@ bool AMapGeneratorBase::GetCanReach(FVector JumpVelocity, FVector Start, FVector
 	float DistanceToTarget = FVector::Dist(Start, End);
 
 	// 최고 높이까지의 도달 시간을 계산
-	float VerticalTime = JumpVelocity.Z / (GravityScale * 0.5f);
+	float VerticalTime = StartVelocity.Z / (GravityScale * 0.5f);
 
 	// 도달할 수 있는 가장 높은 지점
-	float HighestHeight = FMath::Pow(JumpVelocity.Z, 2) / (GravityScale * 2.0f) + 40.0f;
+	float HighestHeight = FMath::Pow(StartVelocity.Z, 2) / (GravityScale * 2.0f) + 40.0f;
 
 	// 수평 방향으로 이동할 거리 계산
-	float HorizontalDistance = JumpVelocity.X * VerticalTime;
+	float HorizontalDistance = StartVelocity.X * VerticalTime;
 
 
-	UE_LOG(LogTemp, Warning, TEXT("h dist : %.2lf, hightest : %.2lf, time : %.2lf, gravity : %.2lf"), HorizontalDistance, HighestHeight, VerticalTime, GravityScale);
-
-	// 도착 지점과의 거리가 발사체가 이동할 수 있는 거리보다 짧다면 도달 가능
+	//UE_LOG(LogTemp, Warning, TEXT("h dist : %.2lf, hightest : %.2lf, time : %.2lf, gravity : %.2lf"), HorizontalDistance, HighestHeight, VerticalTime, GravityScale);
+	//허용 가능한 오차 
 	float tolerance = 5.0f;
-	
-	if (HighestHeight < End.Z || DistanceToTarget > HorizontalDistance + tolerance) return false;
 
-	float targetTime = DistanceToTarget / JumpVelocity.X;
-	float targetTimeVelocity = 0.0f; 
-	float targetTimeHeight = 0.0f;
+	//고점보다 타겟의 Z축 좌표가 더 높거나, 타겟까지의 도달거리가 최종 도착 지점보다 멀다면 도달 불가
+	if (HighestHeight < End.Z || DistanceToTarget > HorizontalDistance + tolerance)
+	{
+		ErrorDist = FMath::Max(0.0f, End.Z - HighestHeight) + FMath::Max(0.0f, DistanceToTarget - HorizontalDistance);
+		return false;
+	}
 
+	float targetTime = DistanceToTarget / StartVelocity.X; //타겟까지의 도달 시간 (Z축 제외)
+	float targetTimeVelocity = 0.0f; //타겟 좌표에서의 플레이어의 Z축 속도
+	float targetTimeHeight = 0.0f; //타겟 좌표에서의 플레이어의 Z축 좌표
+
+	//플레이어가 고점에 도달하는 지점 전에 타겟이 있다면
 	if (targetTime < VerticalTime / 2.0f)
 	{
-		targetTimeVelocity = JumpVelocity.Z - GravityScale * targetTime;
+		targetTimeVelocity = StartVelocity.Z - GravityScale * targetTime;
 		targetTimeHeight = HighestHeight - (targetTimeVelocity * 0.5f * (VerticalTime / 2.0f - targetTime) * 0.5f);
-		UE_LOG(LogTemp, Warning, TEXT("target1) time : %.2lf, velo : %.2lf, height : %.2lf"), targetTime, targetTimeVelocity, targetTimeHeight);
 	}
+	//고점 도달 지점 이후에 타겟이 있다면
 	else
 	{
-		targetTimeVelocity = JumpVelocity.Z - GravityScale * targetTime;
+		targetTimeVelocity = StartVelocity.Z - GravityScale * targetTime;
 		targetTimeHeight = HighestHeight + (targetTimeVelocity * 0.5f * FMath::Abs(targetTime - VerticalTime / 2.0f) * 0.5f);
-		UE_LOG(LogTemp, Warning, TEXT("target2) time : %.2lf, velo : %.2lf, height : %.2lf"), targetTime, targetTimeVelocity, targetTimeHeight);
 	}
 
-
+	//타겟의 2차원 좌표에 도달할때의 플레이어의 Z좌표가 타겟의 Z좌표보다 높다면?
 	if (targetTimeHeight >= End.Z) return true; 
 
-	ErrorDist = DistanceToTarget - HorizontalDistance;
+	ErrorDist = (End.Z - targetTimeHeight);
 	return false;
+}
+
+// Function to check if a point is inside a cuboid defined by two points
+bool AMapGeneratorBase::IsPointInsideCuboid(const FVector& PointA, const FVector& PointB, const FVector& TestPoint)
+{
+	// Calculate the minimum and maximum x, y, and z coordinates of the cuboid
+	float minX = FMath::Min(PointA.X, PointB.X);
+	float maxX = FMath::Max(PointA.X, PointB.X);
+	float minY = FMath::Min(PointA.Y, PointB.Y);
+	float maxY = FMath::Max(PointA.Y, PointB.Y);
+	float minZ = FMath::Min(PointA.Z, PointB.Z);
+	float maxZ = FMath::Max(PointA.Z, PointB.Z);
+
+	// Check if the test point's coordinates are within the range of the cuboid
+	return (TestPoint.X >= minX && TestPoint.X <= maxX &&
+		TestPoint.Y >= minY && TestPoint.Y <= maxY &&
+		TestPoint.Z >= minZ && TestPoint.Z <= maxZ);
 }
 
 void AMapGeneratorBase::Repair(FPopulationStruct& Result)

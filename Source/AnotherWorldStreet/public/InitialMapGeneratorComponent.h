@@ -38,4 +38,7 @@ protected:
 	//마지막 생성 결과
 	UPROPERTY(BlueprintReadWrite)
 		FMapInfoStruct LastGenerateResult;
+
+	UPROPERYT(BlueprintReadWrite)
+		TArray<FMapInfoStruct> LastGenerateResultList;
 };
