@@ -175,12 +175,12 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 	return false;
 }
 
-void AMapGeneratorBase::SetInitialPopulation(FMapInfoStruct MapInfo)
+void AMapGeneratorBase::SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList)
 {
-	CurrentPopulationInfo.BestResultMap = MapInfo;
 	for (int32 idx = 0; idx < PopulationSize; idx++)
 	{
-		CurrentPopulationInfo.Population.Add(MapInfo);
+		CurrentPopulationInfo.BestResultMap = MapInfoList[idx % MapInfoList.Num()];
+		CurrentPopulationInfo.Population.Add(MapInfoList[idx % MapInfoList.Num()]);
 	}
 }
 

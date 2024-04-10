@@ -139,7 +139,7 @@ public:
 
 protected:
 	UFUNCTION(BlueprintCallable)
-		void SetInitialPopulation(FMapInfoStruct MapInfo);
+		void SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList);
 
 //======= Fitness Condition Functions ================
 	UFUNCTION(BlueprintCallable)

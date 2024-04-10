@@ -39,6 +39,6 @@ protected:
 	UPROPERTY(BlueprintReadWrite)
 		FMapInfoStruct LastGenerateResult;
 
-	UPROPERYT(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadWrite)
 		TArray<FMapInfoStruct> LastGenerateResultList;
 };
