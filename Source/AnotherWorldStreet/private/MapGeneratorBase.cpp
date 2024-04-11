@@ -27,6 +27,8 @@ void AMapGeneratorBase::BeginPlay()
 		JumpVelocity.Z = PlayerRef->GetCharacterMovement()->JumpZVelocity;
 		GravityMultipiler = PlayerRef->GetCharacterMovement()->GravityScale;
 	}
+
+	InitPlatformMeshPointInfo();
 }
 
 // Called every frame
@@ -92,10 +94,13 @@ float AMapGeneratorBase::CalculateFitness()
 {
 	//적합도는 반드시 낮아야한다. 좋지 않은 상황에서 더 더하는 방식
 	//적합도 계산 가중치 (도합 1), 높은 가중치 = 반드시 지켜져야하는 룰
-	const float outOfRangeWeight = 0.6f; //플랫폼이 파라미터로 지정한 범위 외부에 있는지에 대한 가중치
-	const float outOfRangeValue = 99999.0f; 
+	const float outOfRangeWeight = 0.4f; //플랫폼이 파라미터로 지정한 범위 외부에 있는지에 대한 가중치
+	const float overlappedWeight = 0.2f; //겹치는 플랫폼이 있는지에 대한 가중치
 	const float unreachableWeight = 0.35f; //플레이어가 도달 불가능한 플랫폼이 있는지에 대한 가중치
 	const float difficultyWeight = 0.05f; //난이도가 적합하지 않은것에 대한 가중치
+
+	const float outOfRangeValue = 99999.0f;
+	const float overlappedValue = 200.0f;
 
 	float bestFitness = (float)1e9;
 
@@ -124,6 +129,9 @@ float AMapGeneratorBase::CalculateFitness()
 				FPlatformInfoStruct prev = currentMap.PlatformInfoList[platformIdx - 1];
 				FVector prevLocation = prev.PlatformTransform.GetLocation();
 				float distance = UKismetMathLibrary::Vector_Distance(prevLocation, currLocation);
+				
+				//겹치는 플랫폼이 있는지?
+				newFitness += (GetIsOverlapped(curr, prev) ? overlappedValue : 0.0f);
 
 				//도달 불가능한 노드가 있는지?
 				float errorValue = 0.0f;
@@ -175,6 +183,43 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 	return false;
 }
 
+void AMapGeneratorBase::InitPlatformMeshPointInfo()
+{
+	const float dx[8] = { -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0 };
+	const float dy[8] = { 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, -1.0 };
+	const float dz[8] = { 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0, -1.0 };
+	const float d[8] = { -0.5, 0.5, 1.0, 1.0, 0.5, -0.5, -1.0, -1.0 };
+
+	for (auto& mesh : PlatformMeshList)
+	{
+		if (mesh == nullptr) continue;
+
+		FBox boxInfo = mesh->GetBoundingBox();
+		FVector center = boxInfo.GetCenter();
+		FVector extent = boxInfo.GetExtent().GetAbs();
+
+		FPlatformPointStruct pointsInfo; 
+		pointsInfo.BoxInfo = boxInfo;
+
+		//윗면 모서리 추가 지점 구성
+		int32 xIdx = 0, yIdx = 4;
+		for (int32 dir = 0; dir < 8; dir++)
+		{
+			FVector point = center + FVector(extent.X + d[(xIdx + dir) % 8], extent.Y + dy[(yIdx + dir) % 8], 1.0f);
+			pointsInfo.PointList.Add(point);
+		}
+
+		//꼭지점 구성
+		for (int32 dir = 0; dir < 8; dir++)
+		{
+			FVector point = center + FVector(extent.X + dx[dir], extent.Y + dy[dir], extent.Z + dz[dir]);
+			pointsInfo.PointList.Add(point);
+		}
+
+		PlatformMeshPointInfoMap.Add(mesh, pointsInfo);
+	}
+}
+
 void AMapGeneratorBase::SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList)
 {
 	for (int32 idx = 0; idx < PopulationSize; idx++)
@@ -182,6 +227,32 @@ void AMapGeneratorBase::SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList)
 		CurrentPopulationInfo.BestResultMap = MapInfoList[idx % MapInfoList.Num()];
 		CurrentPopulationInfo.Population.Add(MapInfoList[idx % MapInfoList.Num()]);
 	}
+}
+
+float AMapGeneratorBase::GetNearestPoint(const FPlatformInfoStruct& P1, const FPlatformInfoStruct& P2, FVector& PosA, FVector& PosB)
+{
+	if (!PlatformMeshPointInfoMap.Contains(P1.PlatformStaticMesh)
+		|| !PlatformMeshPointInfoMap.Contains(P2.PlatformStaticMesh)) return FLT_MAX;
+	if (GetIsOverlapped(P1, P2)) return FLT_MAX;
+
+	TArray<FVector> p1Points = PlatformMeshPointInfoMap[P1.PlatformStaticMesh].PointList;
+	TArray<FVector> p2Points = PlatformMeshPointInfoMap[P2.PlatformStaticMesh].PointList;
+	float nearDist = FLT_MAX;
+
+	for (int32 p1Idx = 0; p1Idx < 12; p1Idx++)
+	{
+		for (int32 p2Idx = 0; p2Idx < 12; p2Idx++)
+		{
+			float dist = FVector::Dist(p1Points[p1Idx], p2Points[p2Idx]);
+			if (dist < nearDist)
+			{
+				nearDist = dist;
+				PosA = p1Points[p1Idx];
+				PosB = p2Points[p2Idx];
+			}
+		}
+	}
+	return nearDist;
 }
 
 bool AMapGeneratorBase::GetCanReach(FVector StartVelocity, FVector Start, FVector End, float& ErrorDist, float GravityScale)
@@ -258,6 +329,17 @@ bool AMapGeneratorBase::IsPointInsideCuboid(const FVector& PointA, const FVector
 	return (TestPoint.X >= minX && TestPoint.X <= maxX &&
 		TestPoint.Y >= minY && TestPoint.Y <= maxY &&
 		TestPoint.Z >= minZ && TestPoint.Z <= maxZ);
+}
+
+bool AMapGeneratorBase::GetIsOverlapped(const FPlatformInfoStruct& P1, const FPlatformInfoStruct& P2)
+{
+	if (!PlatformMeshPointInfoMap.Contains(P1.PlatformStaticMesh)
+		|| !PlatformMeshPointInfoMap.Contains(P2.PlatformStaticMesh)) return false;
+
+	FBox p1Box = PlatformMeshPointInfoMap[P1.PlatformStaticMesh].BoxInfo;
+	FBox p2Box = PlatformMeshPointInfoMap[P2.PlatformStaticMesh].BoxInfo;
+
+	return p1Box.Intersect(p2Box);
 }
 
 void AMapGeneratorBase::Repair(FPopulationStruct& Result)
