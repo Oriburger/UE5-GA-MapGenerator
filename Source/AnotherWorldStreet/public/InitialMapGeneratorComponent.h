@@ -55,6 +55,9 @@ public:
 		void GenBezierCurve(FVector Start, FVector End, int32 GenPointNum, int32 ControlPointNum);
 
 
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+		TArray<FMapInfoStruct> GetLastResultList() { return LastGenerateResultList; }
+
 protected:	
 	//마지막 생성 결과
 	UPROPERTY(BlueprintReadWrite)

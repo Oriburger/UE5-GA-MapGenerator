@@ -40,6 +40,7 @@ void AMapGeneratorBase::Tick(float DeltaTime)
 
 void AMapGeneratorBase::RunGeneticAlgorithm()
 {
+	UE_LOG(LogTemp, Warning, TEXT("CurrentGen : %d, Threshold : %d"), CurrentGen, GenerationThresold);
 	//=== 최초 모집단 생성 =======================
 	if (CurrentGen == 0)
 	{
@@ -71,6 +72,7 @@ void AMapGeneratorBase::RunGeneticAlgorithm()
 	{
 		//~~ 적합도 연산 ~~
 		CurrentPopulationInfo.BestFitnessValue = CalculateFitness();
+		BestFitnessValue = FMath::Min(BestFitnessValue, CurrentPopulationInfo.BestFitnessValue);
 
 		//~~ 선택 ~~
 		SelectParents();
@@ -82,8 +84,7 @@ void AMapGeneratorBase::RunGeneticAlgorithm()
 
 		//세대를 하나 늘리고, 진행도 업데이트 이벤트를 활성화시킨다.
 		CurrentGen += 1;
-		TotalElapsedTime = FMath::Min(TotalElapsedTime, FMath::RandRange(2150.0f, 50000.0f)); //임시 코드
-		OnGAUpdatedProgress.Broadcast(CurrentGen, (float)CurrentGen / (float)GenerationThresold, TotalElapsedTime);
+		OnGAUpdatedProgress.Broadcast(CurrentGen, (float)CurrentGen/(float)GenerationThresold, BestFitnessValue);
 
 		//다음 세대의 학습을 다음 틱에서 진행한다.
 		GetWorldTimerManager().SetTimer(GenerationDelayHandle, this, &AMapGeneratorBase::RunGeneticAlgorithm, 0.001f, false);	
@@ -170,6 +171,8 @@ void AMapGeneratorBase::SelectParents()
 	{
 		tempPopulation.Population.Add(CurrentPopulationInfo.Population[idx]);
 	}
+	
+	tempPopulation.BestResultMap = tempPopulation.Population[0];
 	CurrentPopulationInfo = tempPopulation;
 }
 
