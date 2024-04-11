@@ -56,9 +56,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Setting")
 		FVector EndLocation;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Setting")
-		TArray<UStaticMesh*> StaticMeshList;
-
 	//레벨 당 허용가능한 점프 최대 거리, 맵 속성 프로퍼티의 MapLevel 만큼의 멤버는 있어야함. DefaultValue : 250.0f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		TArray<float> LevelPerJumpDistThreshold;

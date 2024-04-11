@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Proidxect Settings.
 
 
 #include "../public/InitialMapGeneratorComponent.h"
@@ -24,7 +24,7 @@ void UInitialMapGeneratorComponent::BeginPlay()
 	Super::BeginPlay();
 
 	MapGeneratorRef = Cast<AMapGeneratorBase>(GetOwner());
-	checkf(IsValid(MapGeneratorRef->StaticMeshList[0]), TEXT("StaticMesh 탐색에 실패했습니다."));
+	//checkf(IsValid(MapGeneratorRef->StaticMeshList[0]), TEXT("StaticMesh 탐색에 실패했습니다."));
 
 	if (IsValid(MapGeneratorRef))
 	{
@@ -43,23 +43,28 @@ void UInitialMapGeneratorComponent::Generate_Implementation()
 {
 	GenBezierCurve(StartLoc, EndLoc, 30, 2);
 
-	PlatformInfoResult.PlatformStaticMesh = MapGeneratorRef->StaticMeshList[0];
+	PlatformInfoResult.PlatformStaticMesh = MapGeneratorRef->PlatformMeshList[0];
 
 	for (FVector& curvePoint : CurvePoints)
 	{
 		PlatformInfoResult.PlatformTransform = UKismetMathLibrary::MakeTransform(curvePoint, FRotator::ZeroRotator, FVector(1.0f));
+		UE_LOG(LogTemp, Warning, TEXT("curve Point : %.2lf %.2lf %.2lf"), curvePoint.X, curvePoint.Y, curvePoint.Z);
 		LastGenerateResult.PlatformInfoList.Add(PlatformInfoResult);
 	}
-
-	LastGenerateResultList.Add(LastGenerateResult);
+	//LastGenerateResult = FMapInfoStruct();
+	for (int32 populationSize = 0; populationSize < MapGeneratorRef->PopulationSize; populationSize++) 
+	{
+		LastGenerateResultList.Add(LastGenerateResult);
+		//LastGenerateResultList[populationSize] = LastGenerateResult;
+	}
 }
 
 FVector UInitialMapGeneratorComponent::GenControlPoint()
 {
 	FVector ControlPoint;
 
-	float Rand_X = FMath::FRandRange(5000.0f, 10000.0f);
-	float Rand_Y = FMath::FRandRange(5000.0f, 10000.0f);
+	float Rand_X = FMath::FRandRange(0.0f, 10000.0f);
+	float Rand_Y = FMath::FRandRange(0.0f, 10000.0f);
 	float Rand_Z = FMath::FRandRange(1000.0f, 1500.0f);
 
 	ControlPoint.X = Rand_X;
@@ -90,8 +95,8 @@ void UInitialMapGeneratorComponent::GenBezierCurve(FVector Start, FVector End, i
 	//Control Point가 한개일때
 	if(ControlPointNum == 2) 
 	{
-		for (int32 j = 0; j < GenPointNum; j++) {
-			float t = j / (GenPointNum - 1);
+		for (int32 idx = 0; idx < GenPointNum; idx++) {
+			float t = float(idx) / (GenPointNum - 1);
 			float oneMinusT = 1.0 - t;
 			float tSquared = t * t;
 			float oneMinusTSquared = oneMinusT * oneMinusT;
