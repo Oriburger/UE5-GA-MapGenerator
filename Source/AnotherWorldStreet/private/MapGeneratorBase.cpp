@@ -40,7 +40,6 @@ void AMapGeneratorBase::Tick(float DeltaTime)
 
 void AMapGeneratorBase::RunGeneticAlgorithm()
 {
-	UE_LOG(LogTemp, Warning, TEXT("CurrentGen : %d, Threshold : %d"), CurrentGen, GenerationThresold);
 	//=== 최초 모집단 생성 =======================
 	if (CurrentGen == 0)
 	{
@@ -72,15 +71,32 @@ void AMapGeneratorBase::RunGeneticAlgorithm()
 	{
 		//~~ 적합도 연산 ~~
 		CurrentPopulationInfo.BestFitnessValue = CalculateFitness();
+		UE_LOG(LogTemp, Warning, TEXT("CurrentGen : %d, Threshold : %d, Fitness : %.2lf"), CurrentGen, GenerationThresold, CurrentPopulationInfo.BestFitnessValue);
 		BestFitnessValue = FMath::Min(BestFitnessValue, CurrentPopulationInfo.BestFitnessValue);
 
 		//~~ 선택 ~~
 		SelectParents();
 
-		//~~ 학습 과정 ~~
-		//Crossover();
-		//Mutate()
+		//~~ 교차 및 Mutate~~
+		TArray<FMapInfoStruct> newChildList;
+		for (int32 cIdx = 0; cIdx < CurrentPopulationInfo.Population.Num() - 1; cIdx++)
+		{
+			int32 tIdx = UKismetMathLibrary::RandomIntegerInRange(cIdx + 1, CurrentPopulationInfo.Population.Num() - 1);
+			FMapInfoStruct newChild = Crossover(CurrentPopulationInfo.Population[cIdx], CurrentPopulationInfo.Population[tIdx]);
+			
+			if (UKismetMathLibrary::RandomFloat() <= MutatePossibility)
+			{
+				Mutate(newChild);
+			}
+			newChildList.Add(newChild);
+		}
+		for (auto& child : newChildList)
+		{
+			CurrentPopulationInfo.Population.Add(child);
+		}
+
 		//Repair()
+		
 
 		//세대를 하나 늘리고, 진행도 업데이트 이벤트를 활성화시킨다.
 		CurrentGen += 1;
@@ -100,10 +116,11 @@ float AMapGeneratorBase::CalculateFitness()
 	const float unreachableWeight = 0.35f; //플레이어가 도달 불가능한 플랫폼이 있는지에 대한 가중치
 	const float difficultyWeight = 0.05f; //난이도가 적합하지 않은것에 대한 가중치
 
-	const float outOfRangeValue = 99999.0f;
+	const float outOfRangeValue = 999.0f;
 	const float overlappedValue = 200.0f;
 
-	float bestFitness = (float)1e9;
+	float bestFitness = FLT_MAX;
+	float avgFitness = 0.0f;
 
 	//모집단의 모든 멤버에 대해 수행
 	for (int32 mapIdx = 0; mapIdx < CurrentPopulationInfo.Population.Num(); mapIdx++)
@@ -153,8 +170,11 @@ float AMapGeneratorBase::CalculateFitness()
 				}
 			}
 		}
-		bestFitness = FMath::Min(bestFitness, currentMap.TotalFitness = newFitness);
+		currentMap.TotalFitness = newFitness;
+		avgFitness += newFitness;
+		bestFitness = FMath::Min(bestFitness, currentMap.TotalFitness);
 	}
+	UE_LOG(LogTemp, Warning, TEXT("Avg : %.2lf"), avgFitness / CurrentPopulationInfo.Population.Num());
 	return bestFitness;
 }
 
@@ -176,13 +196,51 @@ void AMapGeneratorBase::SelectParents()
 	CurrentPopulationInfo = tempPopulation;
 }
 
-FPopulationStruct AMapGeneratorBase::Crossover()
+FMapInfoStruct AMapGeneratorBase::Crossover(const FMapInfoStruct& G1, const FMapInfoStruct& G2)
 {
-	return FPopulationStruct();
+	FMapInfoStruct childMap;
+	FVector midPoint = (StartLocation + EndLocation) / 2.0f;
+	int32 g1Idx = 0, g2Idx = 0;
+
+	for (; g1Idx < G1.PlatformInfoList.Num(); g1Idx++)
+	{
+		FPlatformInfoStruct platform = G1.PlatformInfoList[g1Idx];
+		childMap.PlatformInfoList.Add(platform);
+		if (platform.PlatformTransform.GetLocation() == midPoint) break;
+	}
+	
+	bool bIsFound = false;
+	for (; g2Idx < G2.PlatformInfoList.Num(); g2Idx++)
+	{
+		FPlatformInfoStruct platform = G2.PlatformInfoList[g2Idx];
+		if (platform.PlatformTransform.GetLocation() == midPoint)
+		{
+			bIsFound = true;
+			continue;
+		}
+		if (bIsFound)
+		{
+			childMap.PlatformInfoList.Add(platform);
+		}
+	}
+	return childMap;
 }
 
 bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 {
+	float mutateLength = child.PlatformInfoList.Num() * UKismetMathLibrary::RandomFloatInRange(0.0f, MaxMutationRate);
+	int32 mutateStartIdx = UKismetMathLibrary::RandomIntegerInRange(0, child.PlatformInfoList.Num() - (int32)mutateLength - 1);
+	int32 mutateFinishIdx = mutateStartIdx + (int32)mutateLength; 
+
+	for (int32 idx = mutateStartIdx; idx <= mutateFinishIdx; idx++)
+	{
+		FVector location = child.PlatformInfoList[idx].PlatformTransform.GetLocation();
+		location.X += UKismetMathLibrary::RandomFloatInRange(0.0f, 1000.0f);
+		location.Y += UKismetMathLibrary::RandomFloatInRange(0.0f, 1000.0f);
+		location.Z += UKismetMathLibrary::RandomFloatInRange(0.0f, 1000.0f);
+		child.PlatformInfoList[idx].PlatformTransform.SetLocation(location);
+	}
+
 	return false;
 }
 
@@ -227,8 +285,17 @@ void AMapGeneratorBase::SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList)
 {
 	for (int32 idx = 0; idx < PopulationSize; idx++)
 	{
-		CurrentPopulationInfo.BestResultMap = MapInfoList[idx % MapInfoList.Num()];
-		CurrentPopulationInfo.Population.Add(MapInfoList[idx % MapInfoList.Num()]);
+		FMapInfoStruct& targetMap = MapInfoList[idx % MapInfoList.Num()];
+		//~~ 오름차순 정렬 ~~
+		targetMap.PlatformInfoList.Sort([](const FPlatformInfoStruct& p1, const FPlatformInfoStruct& p2) {
+			return (p1.PlatformTransform.GetLocation().X > p2.PlatformTransform.GetLocation().X
+				   ? p1.PlatformTransform.GetLocation().X > p2.PlatformTransform.GetLocation().X
+				   : ((p1.PlatformTransform.GetLocation().Y > p2.PlatformTransform.GetLocation().Y)
+					  ? p1.PlatformTransform.GetLocation().Y > p2.PlatformTransform.GetLocation().Y
+					  : (p1.PlatformTransform.GetLocation().Z > p2.PlatformTransform.GetLocation().Z)));
+		});
+		CurrentPopulationInfo.BestResultMap = targetMap;
+		CurrentPopulationInfo.Population.Add(targetMap);
 	}
 }
 
