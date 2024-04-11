@@ -34,6 +34,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 		FMapInfoStruct GetLastResult() { return LastGenerateResult; }
 
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+		TArray<FMapInfoStruct> GetLastResultList() { return LastGenerateResultList; }
+
 protected:	
 	//마지막 생성 결과
 	UPROPERTY(BlueprintReadWrite)
