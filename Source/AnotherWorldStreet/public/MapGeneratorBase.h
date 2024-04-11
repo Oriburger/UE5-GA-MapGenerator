@@ -57,13 +57,22 @@ public:
 		FVector EndLocation;
 
 	//레벨 당 허용가능한 점프 최대 거리, 맵 속성 프로퍼티의 MapLevel 만큼의 멤버는 있어야함. DefaultValue : 250.0f;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		TArray<float> LevelPerJumpDistThreshold;
+
+	//레벨에 등장시킬 플랫폼 스태틱 메시 종류
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Setting")
+		TArray<class UStaticMesh*> PlatformMeshList;
+
+protected:
+	//플랫폼 메시의 각 포인트 정보
+	UPROPERTY(BlueprintReadOnly)
+		TMap<class UStaticMesh*, FPlatformPointStruct> PlatformMeshPointInfoMap;
 
 //======= GA 프로퍼티 ================
 public:
 	//총 학습 세대 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0, UIMax = 100000))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0, UIMax = 1))
 		int32 GenerationThresold = 1000;
 
 	//집단 구성하는 염색체 수
@@ -138,15 +147,25 @@ public:
 		void Visualize(FMapInfoStruct MapInfo);
 
 protected:
+	UFUNCTION()
+		void InitPlatformMeshPointInfo();
+
 	UFUNCTION(BlueprintCallable)
 		void SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList);
 
 //======= Fitness Condition Functions ================
 	UFUNCTION(BlueprintCallable)
+		float GetNearestPoint(const FPlatformInfoStruct& P1, const FPlatformInfoStruct& P2, FVector& PosA, FVector& PosB);
+
+	UFUNCTION(BlueprintCallable)
 		bool GetCanReach(FVector JumpVelocity, FVector Start, FVector End, float& ErrorDist, float GravityScale = 3.0f);
 
 	UFUNCTION(BlueprintCallable)
 		bool IsPointInsideCuboid(const FVector& PointA, const FVector& PointB, const FVector& TestPoint);
+
+	UFUNCTION(BlueprintCallable)
+		bool GetIsOverlapped(const FPlatformInfoStruct& P1, const FPlatformInfoStruct& P2);
+
 //======== Property ==================================
 private:
 	UPROPERTY()
@@ -156,7 +175,7 @@ private:
 	UPROPERTY()
 		FVector JumpVelocity;
 
-	//캐릭터 무브먼트의 
+	//캐릭터 무브먼트의 GravityScale을 따름
 	UPROPERTY()
 		float GravityMultipiler;
 };
