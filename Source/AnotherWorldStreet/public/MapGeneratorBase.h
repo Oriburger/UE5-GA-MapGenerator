@@ -83,6 +83,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		float MaxCrossOverRate = 0.5f;
 
+	//crossover한 자식에 대해 돌연변이 연산을 가할 확률
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
+		float MutatePossibility = 0.25f;
+
 	//Mutate Operation Rate
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		float MaxMutationRate = 0.1f;
@@ -129,7 +133,7 @@ private:
 		void SelectParents();
 
 	UFUNCTION()
-		FPopulationStruct Crossover();
+		FMapInfoStruct Crossover(const FMapInfoStruct& G1, const FMapInfoStruct& G2);
 
 	UFUNCTION()
 		bool Mutate(FMapInfoStruct& child);
