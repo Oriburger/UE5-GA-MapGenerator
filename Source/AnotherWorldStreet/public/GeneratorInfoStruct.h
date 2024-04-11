@@ -98,6 +98,21 @@ public:
 };
 
 USTRUCT(BlueprintType)
+struct FPlatformPointStruct
+{
+public:
+	GENERATED_USTRUCT_BODY()
+
+	//꼭지점 및 상단면 추가 점 포함
+	UPROPERTY(BlueprintReadOnly)
+		TArray<FVector> PointList;
+
+	//Origin, Extent 등 다양한 프로퍼티 및 정보 포함
+	UPROPERTY(BlueprintReadOnly)
+		FBox BoxInfo;
+};
+
+USTRUCT(BlueprintType)
 struct FPoint3D
 {
 public:

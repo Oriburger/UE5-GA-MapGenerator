@@ -15,11 +15,6 @@ UInitialMapGeneratorComponent::UInitialMapGeneratorComponent()
 
 
 	// ..
-	AMapGeneratorBase MapGeneratorBase;
-	StartLoc = MapGeneratorBase.StartLocation;
-	EndLoc = MapGeneratorBase.EndLocation;
-
-	checkf(IsValid(MapGeneratorBase.StaticMeshList[0]), TEXT("StaticMesh 탐색에 실패했습니다."));
 
 }
 
@@ -28,6 +23,14 @@ void UInitialMapGeneratorComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	MapGeneratorRef = Cast<AMapGeneratorBase>(GetOwner());
+	checkf(IsValid(MapGeneratorRef->StaticMeshList[0]), TEXT("StaticMesh 탐색에 실패했습니다."));
+
+	if (IsValid(MapGeneratorRef))
+	{
+		StartLoc = MapGeneratorRef->StartLocation;
+		EndLoc = MapGeneratorRef->EndLocation;
+	}
 }
 
 // Called every frame
@@ -38,21 +41,17 @@ void UInitialMapGeneratorComponent::TickComponent(float DeltaTime, ELevelTick Ti
 
 void UInitialMapGeneratorComponent::Generate_Implementation()
 {
-	AMapGeneratorBase MapGeneratorBase;
+	GenBezierCurve(StartLoc, EndLoc, 30, 2);
 
-	//UKismetMathLibrary::MakeTransform()
-	/*
-	for (FVector& CurvePoint : CurvePoints)
+	PlatformInfoResult.PlatformStaticMesh = MapGeneratorRef->StaticMeshList[0];
+
+	for (FVector& curvePoint : CurvePoints)
 	{
-
+		PlatformInfoResult.PlatformTransform = UKismetMathLibrary::MakeTransform(curvePoint, FRotator::ZeroRotator, FVector(1.0f));
+		LastGenerateResult.PlatformInfoList.Add(PlatformInfoResult);
 	}
 
-	PlatformInfoResult.PlatformStaticMesh = MapGeneratorBase.StaticMeshList[0];
-	PlatformInfoResult.PlatformTransform = 
-
-	LastGenerateResult.PlatformInfoList.Add(PlatformInfoResult)
-	*/
-
+	LastGenerateResultList.Add(LastGenerateResult);
 }
 
 FVector UInitialMapGeneratorComponent::GenControlPoint()
@@ -76,7 +75,8 @@ void UInitialMapGeneratorComponent::GenBezierCurve(FVector Start, FVector End, i
 
 	for (int32 i = 0; i < ControlPointNum; i++)
 	{
-		ControlPoints[i] = GenControlPoint();
+		ControlPoints.Add(GenControlPoint());
+		//ControlPoints[i] = GenControlPoint();
 	}
 
 	//Control Point가 한개일때
@@ -91,10 +91,10 @@ void UInitialMapGeneratorComponent::GenBezierCurve(FVector Start, FVector End, i
 	if(ControlPointNum == 2) 
 	{
 		for (int32 j = 0; j < GenPointNum; j++) {
-			double t = j / (GenPointNum - 1);
-			double oneMinusT = 1.0 - t;
-			double tSquared = t * t;
-			double oneMinusTSquared = oneMinusT * oneMinusT;
+			float t = j / (GenPointNum - 1);
+			float oneMinusT = 1.0 - t;
+			float tSquared = t * t;
+			float oneMinusTSquared = oneMinusT * oneMinusT;
 
 
 			ResultCurve.X = oneMinusTSquared*oneMinusT*Start.X +

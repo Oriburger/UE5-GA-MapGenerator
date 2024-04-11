@@ -60,6 +60,9 @@ protected:
 	UPROPERTY(BlueprintReadWrite)
 		FMapInfoStruct LastGenerateResult;
 
+	UPROPERTY(BlueprintReadWrite)
+		TArray<FMapInfoStruct> LastGenerateResultList;
+
 	//Gen_Control_Point함수 결과값
 	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gen Control point")
 	//	FVector ControlPoint;
@@ -77,4 +80,8 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite)
 		FPlatformInfoStruct PlatformInfoResult;
+
+private:
+	UPROPERTY()
+		class AMapGeneratorBase* MapGeneratorRef;
 };
