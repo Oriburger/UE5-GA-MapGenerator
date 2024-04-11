@@ -105,6 +105,9 @@ protected:
 		float TotalElapsedTime = 1e9;	
 
 private:
+	UPROPERTY()
+		float BestFitnessValue = FLT_MAX; 
+
 	//1틱에 모든 세대의 학습을 돌리지 않게 하기 위한 타이머 핸들
 	//(거의) 1틱마다 나눠서 한 세대씩 학습을 돌림
 	UPROPERTY()
