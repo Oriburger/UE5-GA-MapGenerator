@@ -230,14 +230,14 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 {
 	float mutateLength = child.PlatformInfoList.Num() * UKismetMathLibrary::RandomFloatInRange(0.0f, MaxMutationRate);
 	int32 mutateStartIdx = UKismetMathLibrary::RandomIntegerInRange(0, child.PlatformInfoList.Num() - (int32)mutateLength - 1);
-	int32 mutateFinishIdx = mutateStartIdx + (int32)mutateLength; 
+	int32 mutateFinishIdx = mutateStartIdx + (int32)mutateLength;
 
 	for (int32 idx = mutateStartIdx; idx <= mutateFinishIdx; idx++)
 	{
 		FVector location = child.PlatformInfoList[idx].PlatformTransform.GetLocation();
-		location.X += UKismetMathLibrary::RandomFloatInRange(0.0f, 1000.0f);
-		location.Y += UKismetMathLibrary::RandomFloatInRange(0.0f, 1000.0f);
-		location.Z += UKismetMathLibrary::RandomFloatInRange(0.0f, 1000.0f);
+		location.X += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
+		location.Y += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
+		location.Z += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
 		child.PlatformInfoList[idx].PlatformTransform.SetLocation(location);
 	}
 
