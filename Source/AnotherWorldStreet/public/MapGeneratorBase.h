@@ -95,6 +95,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		TArray<float> FitnessWeightRate; 
 
+	//수선 연산을 진행할 것인지?
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting")
+		bool bIsRepairActive = false;
+
 protected:
 	//현재 세대 번호
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "GA Debug")
@@ -140,7 +144,7 @@ private:
 
 protected:
 	UFUNCTION()
-		void Repair(FPopulationStruct& Result);
+		void Repair(FMapInfoStruct& Result);
 
 //======= Other Functions ================
 public:
