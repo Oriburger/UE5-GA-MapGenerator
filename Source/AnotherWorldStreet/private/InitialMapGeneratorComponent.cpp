@@ -40,20 +40,19 @@ void UInitialMapGeneratorComponent::TickComponent(float DeltaTime, ELevelTick Ti
 
 void UInitialMapGeneratorComponent::Generate_Implementation()
 {
-	FVector mid = FMath::Abs(EndLoc- StartLoc) / 2;
+	FVector mid = (EndLoc + StartLoc) / 2;
 
 	for (int32 populationSize = 0; populationSize < MapGeneratorRef->PopulationSize; populationSize++) 
 	{
 
-		GenBezierCurve(StartLoc, mid, 15, 2);
-		GenBezierCurve(mid, EndLoc, 15, 2);
+		GenBezierCurve(StartLoc, mid, 30, 2);
+		GenBezierCurve(mid, EndLoc, 30, 2);
 
 		PlatformInfoResult.PlatformStaticMesh = MapGeneratorRef->PlatformMeshList[0];
 
 		for (FVector& curvePoint : CurvePoints)
 		{
 			PlatformInfoResult.PlatformTransform = UKismetMathLibrary::MakeTransform(curvePoint, FRotator::ZeroRotator, FVector(1.0f));
-			UE_LOG(LogTemp, Warning, TEXT("curve Point : %.2lf %.2lf %.2lf"), curvePoint.X, curvePoint.Y, curvePoint.Z);
 			LastGenerateResult.PlatformInfoList.Add(PlatformInfoResult);
 		}
 		CurvePoints.Empty();
@@ -64,14 +63,26 @@ void UInitialMapGeneratorComponent::Generate_Implementation()
 FVector UInitialMapGeneratorComponent::GenControlPoint(FVector start, FVector end)
 {
 	FVector ControlPoint;
+	float randX;
+	float randY;
+	float randZ;
+
 	float xRange = FMath::Abs(end.X - start.X);
 	float yRange = FMath::Abs(end.Y - start.Y);
 	float zRange = FMath::Abs(end.Z - start.Z);
 
+	randX = start.X + UKismetMathLibrary::RandomFloatInRange(0, xRange);
+	randY = start.Y + UKismetMathLibrary::RandomFloatInRange(0, yRange);
+	randZ = start.Z + UKismetMathLibrary::RandomFloatInRange(0, zRange);
 
-	float randX = FMath::FRandRange(start.X, xRange);
-	float randY = FMath::FRandRange(start.Y, yRange);
-	float randZ = FMath::FRandRange(start.Z, zRange);
+	/*
+	end.X - start.X > 0 ? randX = start.X + UKismetMathLibrary::RandomFloatInRange(start.X, xRange)
+		: randX = end.X + UKismetMathLibrary::RandomFloatInRange(end.X, xRange);
+	end.Y - start.Y > 0 ? randY = start.Y + UKismetMathLibrary::RandomFloatInRange(start.Y, yRange)
+		: randY = end.Y + UKismetMathLibrary::RandomFloatInRange(end.Y, yRange);
+	end.Z - start.Z > 0 ? randZ = start.Z + UKismetMathLibrary::RandomFloatInRange(start.Z, zRange)
+		: randZ = end.Z + UKismetMathLibrary::RandomFloatInRange(end.Z, zRange);
+	*/
 
 	ControlPoint.X = randX;
 	ControlPoint.Y = randY;
@@ -84,11 +95,8 @@ void UInitialMapGeneratorComponent::GenBezierCurve(FVector start, FVector end, i
 {
 	FVector ResultCurve;
 
-	for (int32 i = 0; i < controlPointNum; i++)
-	{
-		ControlPoints.Add(GenControlPoint(start, end));
-		//ControlPoints[i] = GenControlPoint();
-	}
+	ControlPoints.Add(GenControlPoint(start, end));
+	ControlPoints.Add(GenControlPoint(start, end));
 
 	//Control Point가 한개일때
 	/*
@@ -126,4 +134,5 @@ void UInitialMapGeneratorComponent::GenBezierCurve(FVector start, FVector end, i
 			CurvePoints.Add(ResultCurve);
 		}
 	}
+	ControlPoints.Empty();
 }
