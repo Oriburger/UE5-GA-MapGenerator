@@ -233,10 +233,13 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 	float mutateLength = child.PlatformInfoList.Num() * UKismetMathLibrary::RandomFloatInRange(0.0f, MaxMutationRate);
 	int32 mutateStartIdx = UKismetMathLibrary::RandomIntegerInRange(0, child.PlatformInfoList.Num() - (int32)mutateLength - 1);
 	int32 mutateFinishIdx = mutateStartIdx + (int32)mutateLength; 
+	FVector midPoint = (StartLocation + EndLocation) / 2.0f;
 
 	for (int32 idx = mutateStartIdx; idx <= mutateFinishIdx; idx++)
 	{
 		if (!child.PlatformInfoList.IsValidIndex(idx)) continue;
+		if (child.PlatformInfoList[idx].PlatformTransform.GetLocation() == midPoint) continue;
+
 		FVector location = child.PlatformInfoList[idx].PlatformTransform.GetLocation();
 		location.X += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
 		location.Y += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
@@ -258,6 +261,7 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 		FPlatformInfoStruct& next = Result.PlatformInfoList[idx+1];
 		const FVector currLocation = curr.PlatformTransform.GetLocation();
 		const FVector nextLocation = next.PlatformTransform.GetLocation();
+		const FVector midPoint = (StartLocation + EndLocation) / 2.0f;
 		float errorDist = 0.0f;
 		
 		bool result = GetCanReach(JumpVelocity, currLocation, nextLocation, errorDist, GravityMultipiler);
@@ -286,8 +290,10 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 				FPlatformInfoStruct& prev = Result.PlatformInfoList[idx - 1];
 				const FVector prevLocation = curr.PlatformTransform.GetLocation();
 				
-				if (nextLocation != prevLocation)
+				if (nextLocation != prevLocation && Result.PlatformInfoList[idx].PlatformTransform.GetLocation() != midPoint)
+				{
 					curr.PlatformTransform.SetLocation((nextLocation + prevLocation) / 2.0f);
+				}
 			}
 		}
 	}
@@ -315,6 +321,8 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 		FPlatformInfoStruct& next = Result.PlatformInfoList[idx + 1];
 		const FVector currLocation = curr.PlatformTransform.GetLocation();
 		const FVector nextLocation = next.PlatformTransform.GetLocation();
+		const FVector midPoint = (StartLocation + EndLocation) / 2.0f;
+
 
 		bool result = GetIsOverlapped(curr, next);
 		
@@ -322,6 +330,7 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 		if (result)
 		{
 			if (idx == Result.PlatformInfoList.Num() - 1) continue;
+			if(Result.PlatformInfoList[idx].PlatformTransform.GetLocation() == midPoint) continue;
 			Result.PlatformInfoList.RemoveAt(idx);
 			idx -= 1;
 		}
