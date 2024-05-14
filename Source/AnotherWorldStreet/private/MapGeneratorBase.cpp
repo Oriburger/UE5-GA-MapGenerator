@@ -13,6 +13,24 @@ AMapGeneratorBase::AMapGeneratorBase()
 	DefaultSceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultSceneRoot"));
 	DefaultSceneRoot->SetupAttachment(RootComponent);
 	SetRootComponent(DefaultSceneRoot);
+
+	StartPoint = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StartPoint"));
+	StartPoint->SetupAttachment(RootComponent);
+	StartPoint->SetRelativeLocation(FVector(0.0f));
+	StartPoint->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	StartPoint->bHiddenInGame = true;
+
+	MidPoint = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MidPoint"));
+	MidPoint->SetupAttachment(RootComponent);
+	MidPoint->SetRelativeLocation(MapSize / 2.0f);
+	MidPoint->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MidPoint->bHiddenInGame = true;
+
+	EndPoint = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EndPoint"));
+	EndPoint->SetupAttachment(RootComponent);
+	EndPoint->SetRelativeLocation(MapSize);
+	EndPoint->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	EndPoint->bHiddenInGame = true;	
 }
 
 // Called when the game starts or when spawned
@@ -27,6 +45,12 @@ void AMapGeneratorBase::BeginPlay()
 		JumpVelocity.Z = PlayerRef->GetCharacterMovement()->JumpZVelocity;
 		GravityMultipiler = PlayerRef->GetCharacterMovement()->GravityScale;
 	}
+
+	StartLocation = StartPoint->GetComponentLocation();
+	MidLocation = MidPoint->GetComponentLocation();
+	EndLocation = EndPoint->GetComponentLocation();
+
+	UE_LOG(LogTemp, Warning, TEXT("Start : %s  /  Mid : %s  /  End : %s"), *StartLocation.ToString(), *MidLocation.ToString(), *EndLocation.ToString());
 
 	InitPlatformMeshPointInfo();
 }
@@ -201,29 +225,31 @@ void AMapGeneratorBase::SelectParents()
 FMapInfoStruct AMapGeneratorBase::Crossover(const FMapInfoStruct& G1, const FMapInfoStruct& G2)
 {
 	FMapInfoStruct childMap;
-	FVector midPoint = (StartLocation + EndLocation) / 2.0f;
 	int32 g1Idx = 0, g2Idx = 0;
 
 	for (; g1Idx < G1.PlatformInfoList.Num(); g1Idx++)
 	{
 		FPlatformInfoStruct platform = G1.PlatformInfoList[g1Idx];
 		childMap.PlatformInfoList.Add(platform);
-		if (platform.PlatformTransform.GetLocation() == midPoint) break;
+		if (platform.PlatformTransform.GetLocation().Equals(MidLocation, 0.0f)) break;
 	}
 	
 	bool bIsFound = false;
 	for (; g2Idx < G2.PlatformInfoList.Num(); g2Idx++)
 	{
 		FPlatformInfoStruct platform = G2.PlatformInfoList[g2Idx];
-		if (platform.PlatformTransform.GetLocation() == midPoint)
+		if (platform.PlatformTransform.GetLocation().Equals(MidLocation, 0.0f))
 		{
 			bIsFound = true;
-			continue;
 		}
 		if (bIsFound)
 		{
 			childMap.PlatformInfoList.Add(platform);
 		}
+	}
+	if (!bIsFound)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NOT FOUND!"));
 	}
 	return childMap;
 }
@@ -238,6 +264,7 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 	{
 		if (!child.PlatformInfoList.IsValidIndex(idx)) continue;
 		FVector location = child.PlatformInfoList[idx].PlatformTransform.GetLocation();
+		if (location == MidLocation || location == StartLocation || location == EndLocation) continue;
 		location.X += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
 		location.Y += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
 		location.Z += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
@@ -252,7 +279,7 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 	TArray<FPlatformInfoStruct> additionalPlatforms;
 	
 	//¸ðµç ÇÃ·§ÆûÀ» Å½»öÇÏ¸é¼­ ¼ö¼±ÇÑ´Ù.
-	for (int32 idx = 0; idx < Result.PlatformInfoList.Num()-1; idx++)
+	for (int32 idx = 0; idx < Result.PlatformInfoList.Num()-2; idx++)
 	{
 		FPlatformInfoStruct& curr = Result.PlatformInfoList[idx];
 		FPlatformInfoStruct& next = Result.PlatformInfoList[idx+1];
@@ -286,7 +313,8 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 				FPlatformInfoStruct& prev = Result.PlatformInfoList[idx - 1];
 				const FVector prevLocation = curr.PlatformTransform.GetLocation();
 				
-				if (nextLocation != prevLocation)
+				if (nextLocation != prevLocation && currLocation != MidLocation
+					&& currLocation != StartLocation && currLocation != EndLocation)
 					curr.PlatformTransform.SetLocation((nextLocation + prevLocation) / 2.0f);
 			}
 		}
@@ -322,7 +350,13 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 		if (result)
 		{
 			if (idx == Result.PlatformInfoList.Num() - 1) continue;
-			Result.PlatformInfoList.RemoveAt(idx);
+			else if (currLocation == MidLocation || currLocation == StartLocation || currLocation == EndLocation)
+			{
+				Result.PlatformInfoList.RemoveAt(idx+1);
+				idx += 1;
+				continue;
+			}
+			else Result.PlatformInfoList.RemoveAt(idx);
 			idx -= 1;
 		}
 	}
