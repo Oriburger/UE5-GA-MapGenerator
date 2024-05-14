@@ -16,19 +16,16 @@ AMapGeneratorBase::AMapGeneratorBase()
 
 	StartPoint = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StartPoint"));
 	StartPoint->SetupAttachment(RootComponent);
-	StartPoint->SetRelativeLocation(FVector(0.0f));
 	StartPoint->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	StartPoint->bHiddenInGame = true;
 
 	MidPoint = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MidPoint"));
 	MidPoint->SetupAttachment(RootComponent);
-	MidPoint->SetRelativeLocation(MapSize / 2.0f);
 	MidPoint->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	MidPoint->bHiddenInGame = true;
 
 	EndPoint = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EndPoint"));
 	EndPoint->SetupAttachment(RootComponent);
-	EndPoint->SetRelativeLocation(MapSize);
 	EndPoint->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	EndPoint->bHiddenInGame = true;	
 }
@@ -38,18 +35,17 @@ void AMapGeneratorBase::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	StartLocation = StartPoint->GetComponentLocation();
+	MidLocation = MidPoint->GetComponentLocation();
+	EndLocation = EndPoint->GetComponentLocation();
+
 	PlayerRef = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
 	if (IsValid(PlayerRef))
 	{
 		JumpVelocity.X = PlayerRef->GetCharacterMovement()->MaxWalkSpeed;
 		JumpVelocity.Z = PlayerRef->GetCharacterMovement()->JumpZVelocity;
 		GravityMultipiler = PlayerRef->GetCharacterMovement()->GravityScale;
-	}
-
-	StartLocation = StartPoint->GetComponentLocation();
-	MidLocation = MidPoint->GetComponentLocation();
-	EndLocation = EndPoint->GetComponentLocation();
-
+	}	
 	UE_LOG(LogTemp, Warning, TEXT("Start : %s  /  Mid : %s  /  End : %s"), *StartLocation.ToString(), *MidLocation.ToString(), *EndLocation.ToString());
 
 	InitPlatformMeshPointInfo();
@@ -89,6 +85,15 @@ void AMapGeneratorBase::RunGeneticAlgorithm()
 
 		//알고리즘이 종료되었다고 이벤트를 활성화한다.
 		OnGAEndProcess.Broadcast(StartLocation, TotalElapsedTime);
+
+		DrawDebugSphere(GetWorld(), StartLocation, 50.0f, 12, FColor::Red, false, 10.0f, 1u, 10.0f);
+		DrawDebugSphere(GetWorld(), MidLocation, 50.0f, 12, FColor::Green, false, 10.0f, 1u, 10.0f);
+		DrawDebugSphere(GetWorld(), EndLocation, 50.0f, 12, FColor::Blue, false, 10.0f, 1u, 10.0f);
+
+		UE_LOG(LogTemp, Warning, TEXT("-----End-----------"));
+		UE_LOG(LogTemp, Warning, TEXT("Start : %s"), *StartLocation.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("Mid : %s"), *MidLocation.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("End : %s"), *EndLocation.ToString());
 	}
 	//=== 학습 세대 =======================
 	else if(CurrentGen > 0)
@@ -259,10 +264,13 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 	float mutateLength = child.PlatformInfoList.Num() * UKismetMathLibrary::RandomFloatInRange(0.0f, MaxMutationRate);
 	int32 mutateStartIdx = UKismetMathLibrary::RandomIntegerInRange(1, child.PlatformInfoList.Num() - (int32)mutateLength - 2);
 	int32 mutateFinishIdx = mutateStartIdx + (int32)mutateLength; 
+	FVector midPoint = (StartLocation + EndLocation) / 2.0f;
 
 	for (int32 idx = mutateStartIdx; idx <= mutateFinishIdx; idx++)
 	{
 		if (!child.PlatformInfoList.IsValidIndex(idx)) continue;
+		if (child.PlatformInfoList[idx].PlatformTransform.GetLocation() == midPoint) continue;
+
 		FVector location = child.PlatformInfoList[idx].PlatformTransform.GetLocation();
 		if (location == MidLocation || location == StartLocation || location == EndLocation) continue;
 		location.X += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
@@ -285,6 +293,7 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 		FPlatformInfoStruct& next = Result.PlatformInfoList[idx+1];
 		const FVector currLocation = curr.PlatformTransform.GetLocation();
 		const FVector nextLocation = next.PlatformTransform.GetLocation();
+		const FVector midPoint = (StartLocation + EndLocation) / 2.0f;
 		float errorDist = 0.0f;
 		
 		bool result = GetCanReach(JumpVelocity, currLocation, nextLocation, errorDist, GravityMultipiler);
@@ -314,8 +323,9 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 				const FVector prevLocation = curr.PlatformTransform.GetLocation();
 				
 				if (nextLocation != prevLocation && currLocation != MidLocation
-					&& currLocation != StartLocation && currLocation != EndLocation)
+					&& currLocation != StartLocation && currLocation != EndLocation){
 					curr.PlatformTransform.SetLocation((nextLocation + prevLocation) / 2.0f);
+				}
 			}
 		}
 	}
@@ -401,15 +411,17 @@ void AMapGeneratorBase::InitPlatformMeshPointInfo()
 
 void AMapGeneratorBase::SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList)
 {
-	FPlatformInfoStruct startInfo, finInfo;
-	startInfo.PlatformStaticMesh = finInfo.PlatformStaticMesh = PlatformMeshList[0];
+	FPlatformInfoStruct startInfo, finInfo, midInfo;
+	startInfo.PlatformStaticMesh = midInfo.PlatformStaticMesh = finInfo.PlatformStaticMesh = PlatformMeshList[0];
 	startInfo.PlatformTransform.SetLocation(StartLocation);
+	midInfo.PlatformTransform.SetLocation(MidLocation);
 	finInfo.PlatformTransform.SetLocation(EndLocation);
 	for (int32 idx = 0; idx < PopulationSize; idx++)
 	{
 		FMapInfoStruct& targetMap = MapInfoList[idx % MapInfoList.Num()];
 		//~~ 오름차순 정렬 ~~
 		targetMap.PlatformInfoList.Add(startInfo);
+		targetMap.PlatformInfoList.Add(midInfo);
 		targetMap.PlatformInfoList.Add(finInfo);
 		targetMap.PlatformInfoList.Sort([](const FPlatformInfoStruct& p1, const FPlatformInfoStruct& p2) {
 			return (p1.PlatformTransform.GetLocation().X < p2.PlatformTransform.GetLocation().X
@@ -421,6 +433,11 @@ void AMapGeneratorBase::SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList)
 		CurrentPopulationInfo.BestResultMap = targetMap;
 		CurrentPopulationInfo.Population.Add(targetMap);
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("-----End-----------"));
+	UE_LOG(LogTemp, Warning, TEXT("Start : %s"), *StartLocation.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("Mid : %s"), *MidLocation.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("End : %s"), *EndLocation.ToString());
 }
 
 float AMapGeneratorBase::GetNearestPoint(const FPlatformInfoStruct& P1, const FPlatformInfoStruct& P2, FVector& PosA, FVector& PosB)

@@ -54,7 +54,7 @@ public:
 		int32 MapLevel = 1;
 
 	//Size/Boundary of Map
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map Setting")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Map Setting")
 		FVector MapSize = { 1000.0f, 1000.0f, 1000.0f };
 
 	//레벨 당 허용가능한 점프 최대 거리, 맵 속성 프로퍼티의 MapLevel 만큼의 멤버는 있어야함. DefaultValue : 250.0f;
