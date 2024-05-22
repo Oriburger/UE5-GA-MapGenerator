@@ -273,9 +273,12 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 
 		FVector location = child.PlatformInfoList[idx].PlatformTransform.GetLocation();
 		if (location == MidLocation || location == StartLocation || location == EndLocation) continue;
-		location.X += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
-		location.Y += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
-		location.Z += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
+
+		FVector extent = child.PlatformInfoList[idx].PlatformStaticMesh->GetBounds().BoxExtent;
+
+		location.X += UKismetMathLibrary::RandomFloatInRange(-1 * extent.X * MutationStrength, extent.X * MutationStrength);
+		location.Y += UKismetMathLibrary::RandomFloatInRange(-1 * extent.Y * MutationStrength, extent.Y * MutationStrength);
+		location.Z += UKismetMathLibrary::RandomFloatInRange(-1 * extent.Z * MutationStrength, extent.Z * MutationStrength);
 		child.PlatformInfoList[idx].PlatformTransform.SetLocation(location);
 	}
 
@@ -376,7 +379,7 @@ void AMapGeneratorBase::InitPlatformMeshPointInfo()
 {
 	const float dx[8] = { -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0 };
 	const float dy[8] = { -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0 };
-	const float dz[8] = { -1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0, 1.0 };
+	const float dz[8] = { -2.0, 1.0, 1.0, 1.0, -2.0, -2.0, -2.0, 1.0 };
 	const float d[12] = { -0.5, 0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0, -0.5, -1.0, -1.0, -1.0 };
 
 	for (auto& mesh : PlatformMeshList)

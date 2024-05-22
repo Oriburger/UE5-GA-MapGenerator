@@ -100,9 +100,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		float MutatePossibility = 0.25f;
 
-	//Mutate Operation Rate
+	//Mutate Operation Rate (최대 비율)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		float MaxMutationRate = 0.1f;
+
+	//돌연변이 연산의 강도 (메시 한 변 길이의 몇 %를 최대로 이동 가능하게 할 것인지, 1.0 == 100%)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 10.0f))
+		float MutationStrength = 3.0f;
 
 	//적합도 계산 함수에 대한 가중치 정보
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
