@@ -38,31 +38,44 @@ public:
 	UPROPERTY()
 		USceneComponent* DefaultSceneRoot; 
 
+	UPROPERTY(EditAnywhere)
+		UStaticMeshComponent* StartPoint;
+
+	UPROPERTY(EditAnywhere)
+		UStaticMeshComponent* MidPoint;
+
+	UPROPERTY(EditAnywhere)
+		UStaticMeshComponent* EndPoint;
+
 //======= 맵 속성 프로퍼티 ============
 public:
 	//Level of map
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map Setting")
 		int32 MapLevel = 1;
 
 	//Size/Boundary of Map
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Setting")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Map Setting")
 		FVector MapSize = { 1000.0f, 1000.0f, 1000.0f };
-	
-	//if not assigned, it has random value
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Setting")
-		FVector StartLocation;	
-
-	//if not assigned, it has random value
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Setting")
-		FVector EndLocation;
 
 	//레벨 당 허용가능한 점프 최대 거리, 맵 속성 프로퍼티의 MapLevel 만큼의 멤버는 있어야함. DefaultValue : 250.0f;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		TArray<float> LevelPerJumpDistThreshold;
 
 	//레벨에 등장시킬 플랫폼 스태틱 메시 종류
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map Setting")
 		TArray<class UStaticMesh*> PlatformMeshList;
+
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "Map Setting")
+		FVector StartLocation;
+
+	//if not assigned, it has random value
+	UPROPERTY(BlueprintReadOnly, Category = "Map Setting")
+		FVector MidLocation;
+
+	//if not assigned, it has random value
+	UPROPERTY(BlueprintReadOnly, Category = "Map Setting")
+		FVector EndLocation;
 
 protected:
 	//플랫폼 메시의 각 포인트 정보
@@ -72,31 +85,31 @@ protected:
 //======= GA 프로퍼티 ================
 public:
 	//총 학습 세대 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0, UIMax = 1))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0, UIMax = 1))
 		int32 GenerationThresold = 1000;
 
 	//집단 구성하는 염색체 수
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0, UIMax = 1000))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0, UIMax = 1000))
 		int32 PopulationSize = 50;
 
 	//Crossover Operation Rate
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		float MaxCrossOverRate = 0.5f;
 
 	//crossover한 자식에 대해 돌연변이 연산을 가할 확률
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		float MutatePossibility = 0.25f;
 
 	//Mutate Operation Rate
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		float MaxMutationRate = 0.1f;
 
 	//적합도 계산 함수에 대한 가중치 정보
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		TArray<float> FitnessWeightRate; 
 
 	//수선 연산을 진행할 것인지?
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GA Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting")
 		bool bIsRepairActive = false;
 
 protected:
@@ -136,7 +149,7 @@ private:
 	UFUNCTION()
 		void SelectParents();
 
-	UFUNCTION()
+	UFUNCTION(	)
 		FMapInfoStruct Crossover(const FMapInfoStruct& G1, const FMapInfoStruct& G2);
 
 	UFUNCTION()

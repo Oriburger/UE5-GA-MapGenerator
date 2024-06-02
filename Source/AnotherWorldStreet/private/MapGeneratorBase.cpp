@@ -13,6 +13,21 @@ AMapGeneratorBase::AMapGeneratorBase()
 	DefaultSceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultSceneRoot"));
 	DefaultSceneRoot->SetupAttachment(RootComponent);
 	SetRootComponent(DefaultSceneRoot);
+
+	StartPoint = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StartPoint"));
+	StartPoint->SetupAttachment(RootComponent);
+	StartPoint->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	StartPoint->bHiddenInGame = true;
+
+	MidPoint = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MidPoint"));
+	MidPoint->SetupAttachment(RootComponent);
+	MidPoint->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MidPoint->bHiddenInGame = true;
+
+	EndPoint = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EndPoint"));
+	EndPoint->SetupAttachment(RootComponent);
+	EndPoint->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	EndPoint->bHiddenInGame = true;	
 }
 
 // Called when the game starts or when spawned
@@ -20,13 +35,18 @@ void AMapGeneratorBase::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	StartLocation = StartPoint->GetComponentLocation();
+	MidLocation = MidPoint->GetComponentLocation();
+	EndLocation = EndPoint->GetComponentLocation();
+
 	PlayerRef = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
 	if (IsValid(PlayerRef))
 	{
 		JumpVelocity.X = PlayerRef->GetCharacterMovement()->MaxWalkSpeed;
 		JumpVelocity.Z = PlayerRef->GetCharacterMovement()->JumpZVelocity;
 		GravityMultipiler = PlayerRef->GetCharacterMovement()->GravityScale;
-	}
+	}	
+	UE_LOG(LogTemp, Warning, TEXT("Start : %s  /  Mid : %s  /  End : %s"), *StartLocation.ToString(), *MidLocation.ToString(), *EndLocation.ToString());
 
 	InitPlatformMeshPointInfo();
 }
@@ -65,6 +85,15 @@ void AMapGeneratorBase::RunGeneticAlgorithm()
 
 		//알고리즘이 종료되었다고 이벤트를 활성화한다.
 		OnGAEndProcess.Broadcast(StartLocation, TotalElapsedTime);
+
+		DrawDebugSphere(GetWorld(), StartLocation, 50.0f, 12, FColor::Red, false, 10.0f, 1u, 10.0f);
+		DrawDebugSphere(GetWorld(), MidLocation, 50.0f, 12, FColor::Green, false, 10.0f, 1u, 10.0f);
+		DrawDebugSphere(GetWorld(), EndLocation, 50.0f, 12, FColor::Blue, false, 10.0f, 1u, 10.0f);
+
+		UE_LOG(LogTemp, Warning, TEXT("-----End-----------"));
+		UE_LOG(LogTemp, Warning, TEXT("Start : %s"), *StartLocation.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("Mid : %s"), *MidLocation.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("End : %s"), *EndLocation.ToString());
 	}
 	//=== 학습 세대 =======================
 	else if(CurrentGen > 0)
@@ -201,29 +230,31 @@ void AMapGeneratorBase::SelectParents()
 FMapInfoStruct AMapGeneratorBase::Crossover(const FMapInfoStruct& G1, const FMapInfoStruct& G2)
 {
 	FMapInfoStruct childMap;
-	FVector midPoint = (StartLocation + EndLocation) / 2.0f;
 	int32 g1Idx = 0, g2Idx = 0;
 
 	for (; g1Idx < G1.PlatformInfoList.Num(); g1Idx++)
 	{
 		FPlatformInfoStruct platform = G1.PlatformInfoList[g1Idx];
 		childMap.PlatformInfoList.Add(platform);
-		if (platform.PlatformTransform.GetLocation() == midPoint) break;
+		if (platform.PlatformTransform.GetLocation().Equals(MidLocation, 0.0f)) break;
 	}
 	
 	bool bIsFound = false;
 	for (; g2Idx < G2.PlatformInfoList.Num(); g2Idx++)
 	{
 		FPlatformInfoStruct platform = G2.PlatformInfoList[g2Idx];
-		if (platform.PlatformTransform.GetLocation() == midPoint)
+		if (platform.PlatformTransform.GetLocation().Equals(MidLocation, 0.0f))
 		{
 			bIsFound = true;
-			continue;
 		}
 		if (bIsFound)
 		{
 			childMap.PlatformInfoList.Add(platform);
 		}
+	}
+	if (!bIsFound)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NOT FOUND!"));
 	}
 	return childMap;
 }
@@ -241,6 +272,7 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 		if (child.PlatformInfoList[idx].PlatformTransform.GetLocation() == midPoint) continue;
 
 		FVector location = child.PlatformInfoList[idx].PlatformTransform.GetLocation();
+		if (location == MidLocation || location == StartLocation || location == EndLocation) continue;
 		location.X += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
 		location.Y += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
 		location.Z += UKismetMathLibrary::RandomFloatInRange(-500.0f, 500.0f);
@@ -255,7 +287,7 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 	TArray<FPlatformInfoStruct> additionalPlatforms;
 	
 	//모든 플랫폼을 탐색하면서 수선한다.
-	for (int32 idx = 0; idx < Result.PlatformInfoList.Num()-1; idx++)
+	for (int32 idx = 0; idx < Result.PlatformInfoList.Num()-2; idx++)
 	{
 		FPlatformInfoStruct& curr = Result.PlatformInfoList[idx];
 		FPlatformInfoStruct& next = Result.PlatformInfoList[idx+1];
@@ -290,8 +322,8 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 				FPlatformInfoStruct& prev = Result.PlatformInfoList[idx - 1];
 				const FVector prevLocation = curr.PlatformTransform.GetLocation();
 				
-				if (nextLocation != prevLocation && Result.PlatformInfoList[idx].PlatformTransform.GetLocation() != midPoint)
-				{
+				if (nextLocation != prevLocation && currLocation != MidLocation
+					&& currLocation != StartLocation && currLocation != EndLocation){
 					curr.PlatformTransform.SetLocation((nextLocation + prevLocation) / 2.0f);
 				}
 			}
@@ -321,8 +353,6 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 		FPlatformInfoStruct& next = Result.PlatformInfoList[idx + 1];
 		const FVector currLocation = curr.PlatformTransform.GetLocation();
 		const FVector nextLocation = next.PlatformTransform.GetLocation();
-		const FVector midPoint = (StartLocation + EndLocation) / 2.0f;
-
 
 		bool result = GetIsOverlapped(curr, next);
 		
@@ -330,8 +360,13 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 		if (result)
 		{
 			if (idx == Result.PlatformInfoList.Num() - 1) continue;
-			if(Result.PlatformInfoList[idx].PlatformTransform.GetLocation() == midPoint) continue;
-			Result.PlatformInfoList.RemoveAt(idx);
+			else if (currLocation == MidLocation || currLocation == StartLocation || currLocation == EndLocation)
+			{
+				Result.PlatformInfoList.RemoveAt(idx+1);
+				idx += 1;
+				continue;
+			}
+			else Result.PlatformInfoList.RemoveAt(idx);
 			idx -= 1;
 		}
 	}
@@ -376,15 +411,17 @@ void AMapGeneratorBase::InitPlatformMeshPointInfo()
 
 void AMapGeneratorBase::SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList)
 {
-	FPlatformInfoStruct startInfo, finInfo;
-	startInfo.PlatformStaticMesh = finInfo.PlatformStaticMesh = PlatformMeshList[0];
+	FPlatformInfoStruct startInfo, finInfo, midInfo;
+	startInfo.PlatformStaticMesh = midInfo.PlatformStaticMesh = finInfo.PlatformStaticMesh = PlatformMeshList[0];
 	startInfo.PlatformTransform.SetLocation(StartLocation);
+	midInfo.PlatformTransform.SetLocation(MidLocation);
 	finInfo.PlatformTransform.SetLocation(EndLocation);
 	for (int32 idx = 0; idx < PopulationSize; idx++)
 	{
 		FMapInfoStruct& targetMap = MapInfoList[idx % MapInfoList.Num()];
 		//~~ 오름차순 정렬 ~~
 		targetMap.PlatformInfoList.Add(startInfo);
+		targetMap.PlatformInfoList.Add(midInfo);
 		targetMap.PlatformInfoList.Add(finInfo);
 		targetMap.PlatformInfoList.Sort([](const FPlatformInfoStruct& p1, const FPlatformInfoStruct& p2) {
 			return (p1.PlatformTransform.GetLocation().X < p2.PlatformTransform.GetLocation().X
@@ -396,6 +433,11 @@ void AMapGeneratorBase::SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList)
 		CurrentPopulationInfo.BestResultMap = targetMap;
 		CurrentPopulationInfo.Population.Add(targetMap);
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("-----End-----------"));
+	UE_LOG(LogTemp, Warning, TEXT("Start : %s"), *StartLocation.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("Mid : %s"), *MidLocation.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("End : %s"), *EndLocation.ToString());
 }
 
 float AMapGeneratorBase::GetNearestPoint(const FPlatformInfoStruct& P1, const FPlatformInfoStruct& P2, FVector& PosA, FVector& PosB)

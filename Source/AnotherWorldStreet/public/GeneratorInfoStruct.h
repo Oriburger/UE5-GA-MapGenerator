@@ -18,6 +18,8 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 		FTransform PlatformTransform;
 
+	UPROPERTY(BlueprintReadWrite)
+		bool bIsFixedPlatform = false;
 	//UPROPERTY(BlueprintReadWrite)
 		//	TArray<FObstacleInfo> ObstacleInfoList; 
 };
