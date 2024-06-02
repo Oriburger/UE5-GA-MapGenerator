@@ -54,6 +54,9 @@ public:
 	UFUNCTION()
 		void GenBezierCurve(FVector Start, FVector End, int32 GenPointNum, int32 ControlPointNum);
 
+	UFUNCTION()
+		void GenPerlinBezier(FVector start, FVector end, int32 genPointNum, int32 controlPointNum);
+
 
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 		TArray<FMapInfoStruct> GetLastResultList() { return LastGenerateResultList; }

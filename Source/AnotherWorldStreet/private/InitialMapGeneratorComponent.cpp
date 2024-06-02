@@ -5,6 +5,7 @@
 #include "../public/MapGeneratorBase.h"
 #include "Math/UnrealMathUtility.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "../../../../../Engine/Plugins/Marketplace/FastNoiseGenerator/Source/FastNoiseGenerator/Public/FastNoiseWrapper.h"
 
 // Sets default values for this component's properties
 UInitialMapGeneratorComponent::UInitialMapGeneratorComponent()
@@ -45,8 +46,8 @@ void UInitialMapGeneratorComponent::Generate_Implementation()
 	for (int32 populationSize = 0; populationSize < MapGeneratorRef->PopulationSize; populationSize++) 
 	{
 
-		GenBezierCurve(StartLoc, mid, 30, 2);
-		GenBezierCurve(mid, EndLoc, 30, 2);
+		GenPerlinBezier(StartLoc, mid, 30, 2);
+		GenPerlinBezier(mid, EndLoc, 30, 2);
 
 		PlatformInfoResult.PlatformStaticMesh = MapGeneratorRef->PlatformMeshList[0];
 
@@ -130,6 +131,55 @@ void UInitialMapGeneratorComponent::GenBezierCurve(FVector start, FVector end, i
 				3.0 * oneMinusTSquared * t * ControlPoints[0].Z +
 				3.0 * oneMinusT * tSquared * ControlPoints[1].Z +
 				tSquared * t * end.Z;
+
+			CurvePoints.Add(ResultCurve);
+		}
+	}
+	ControlPoints.Empty();
+}
+
+void UInitialMapGeneratorComponent::GenPerlinBezier(FVector start, FVector end, int32 genPointNum, int32 controlPointNum)
+{
+	FVector ResultCurve;
+	UFastNoiseWrapper* fastNoiseWrapper = nullptr;
+	float noise2D = 0.0f;
+	//fastNoiseWrapper = CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("FastNoiseWrapper"));
+	fastNoiseWrapper = NewObject<UFastNoiseWrapper>();
+
+	fastNoiseWrapper->SetupFastNoise(EFastNoise_NoiseType::Perlin, 1337, 0.01f, EFastNoise_Interp::Quintic, EFastNoise_FractalType::FBM, 3, 2.0f, 0.5f, 0.45f, EFastNoise_CellularDistanceFunction::Euclidean, EFastNoise_CellularReturnType::CellValue);
+	
+	ControlPoints.Add(GenControlPoint(start, end));
+	ControlPoints.Add(GenControlPoint(start, end));
+
+
+	//Control Point가 한개일때
+	if (controlPointNum == 2)
+	{
+		for (int32 idx = 0; idx < genPointNum; idx++) {
+			float t = float(idx) / (genPointNum - 1);
+			float oneMinusT = 1.0 - t;
+			float tSquared = t * t;
+			float oneMinusTSquared = oneMinusT * oneMinusT;
+
+
+			ResultCurve.X = oneMinusTSquared * oneMinusT * start.X +
+				3.0 * oneMinusTSquared * t * ControlPoints[0].X +
+				3.0 * oneMinusT * tSquared * ControlPoints[1].X +
+				tSquared * t * end.X;
+
+			ResultCurve.Y = oneMinusTSquared * oneMinusT * start.Y +
+				3.0 * oneMinusTSquared * t * ControlPoints[0].Y +
+				3.0 * oneMinusT * tSquared * ControlPoints[1].Y +
+				tSquared * t * end.Y;
+
+			ResultCurve.Z = oneMinusTSquared * oneMinusT * start.Z +
+				3.0 * oneMinusTSquared * t * ControlPoints[0].Z +
+				3.0 * oneMinusT * tSquared * ControlPoints[1].Z +
+				tSquared * t * end.Z;
+
+
+			noise2D = fastNoiseWrapper->GetNoise2D(ResultCurve.X, ResultCurve.Y);
+			ResultCurve.Z += noise2D * 500.0f;
 
 			CurvePoints.Add(ResultCurve);
 		}
