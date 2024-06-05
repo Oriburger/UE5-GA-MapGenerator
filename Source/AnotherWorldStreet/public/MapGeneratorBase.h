@@ -58,7 +58,7 @@ public:
 		FVector MapSize = { 1000.0f, 1000.0f, 1000.0f };
 
 	//레벨 당 허용가능한 점프 최대 거리, 맵 속성 프로퍼티의 MapLevel 만큼의 멤버는 있어야함. DefaultValue : 250.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map Setting", meta = (UIMin = 0.0f, UIMax = 500.0f))
 		TArray<float> LevelPerJumpDistThreshold;
 
 	//레벨에 등장시킬 플랫폼 스태틱 메시 종류
@@ -92,21 +92,29 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0, UIMax = 1000))
 		int32 PopulationSize = 50;
 
-	//Crossover Operation Rate
+	//부모 선택 연산에서 엘리티즘으로 선택할 비율
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
-		float MaxCrossOverRate = 0.5f;
+		float ElitismRate = 0.7f;
+
+	//Crossover Operation Rate
+	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
+	//	float MaxCrossOverRate = 0.5f;
 
 	//crossover한 자식에 대해 돌연변이 연산을 가할 확률
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		float MutatePossibility = 0.25f;
 
-	//Mutate Operation Rate
+	//Mutate Operation Rate (최대 비율)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
 		float MaxMutationRate = 0.1f;
 
+	//돌연변이 연산의 강도 (메시 한 변 길이의 몇 %를 최대로 이동 가능하게 할 것인지, 1.0 == 100%)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 10.0f))
+		float MutationStrength = 3.0f;
+
 	//적합도 계산 함수에 대한 가중치 정보
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting", meta = (UIMin = 0.0f, UIMax = 1.0f))
-		TArray<float> FitnessWeightRate; 
+		FGAWeightInfo GAWeightInfo;	
 
 	//수선 연산을 진행할 것인지?
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GA Setting")
@@ -157,7 +165,7 @@ private:
 
 protected:
 	UFUNCTION()
-		void Repair(FMapInfoStruct& Result);
+		void Repair(FMapInfoStruct& Result, bool bForceApply = false);
 
 //======= Other Functions ================
 public:
