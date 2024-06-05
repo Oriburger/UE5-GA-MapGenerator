@@ -270,7 +270,7 @@ FMapInfoStruct AMapGeneratorBase::Crossover(const FMapInfoStruct& G1, const FMap
 bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 {
 	float mutateLength = child.PlatformInfoList.Num() * UKismetMathLibrary::RandomFloatInRange(0.0f, MaxMutationRate);
-	int32 mutateStartIdx = UKismetMathLibrary::RandomIntegerInRange(1, child.PlatformInfoList.Num() - (int32)mutateLength - 2);
+	int32 mutateStartIdx = UKismetMathLibrary::RandomIntegerInRange(0, child.PlatformInfoList.Num() - (int32)mutateLength - 1);
 	int32 mutateFinishIdx = mutateStartIdx + (int32)mutateLength; 
 	FVector midPoint = (StartLocation + EndLocation) / 2.0f;
 
