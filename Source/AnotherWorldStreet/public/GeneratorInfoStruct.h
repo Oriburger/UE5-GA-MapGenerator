@@ -5,6 +5,14 @@
 #include "Engine/DataTable.h"
 #include "GeneratorInfoStruct.generated.h"
 
+UENUM(BlueprintType)enum class EPlatformType : uint8
+{
+	E_None			UMETA(DisplayName = "None"), 
+	E_Start			UMETA(DisplayName = "Start"), 
+	E_Mid			UMETA(DisplayName = "Mid"),
+	E_End			UMETA(DisplayName = "End"),
+};
+
 //Node & Gene
 USTRUCT(BlueprintType)
 struct FPlatformInfoStruct
@@ -12,14 +20,18 @@ struct FPlatformInfoStruct
 public:
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite)
 		UStaticMesh* PlatformStaticMesh;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite)
 		FTransform PlatformTransform;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite)
 		bool bIsFixedPlatform = false;
+
+	UPROPERTY(VisibleInstanceOnly)
+		EPlatformType PlatformType = EPlatformType::E_None;
+
 	//UPROPERTY(BlueprintReadWrite)
 		//	TArray<FObstacleInfo> ObstacleInfoList; 
 };
@@ -60,7 +72,7 @@ public:
 	GENERATED_USTRUCT_BODY()
 
 	//플랫폼 정보 리스트 (정점 리스트)
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite)
 		TArray<FPlatformInfoStruct> PlatformInfoList;
 
 	//간선 정보 리스트 (잇는 스태틱 메시와 그것의 Transform)
@@ -72,7 +84,7 @@ public:
 		TArray<FEdgeInfoStruct>	EdgeInfoList;
 
 	//총 Fitness 값
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite)
 		float TotalFitness = 0.0f;
 };
 
@@ -134,3 +146,25 @@ public:
 		float z;
 };
 
+USTRUCT(BlueprintType)
+struct FGAWeightInfo
+{
+public:
+	GENERATED_USTRUCT_BODY()
+
+	//플랫폼이 파라미터로 지정한 범위 외부에 있는지에 대한 가중치
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (UIMin = 0.0f, UIMax = 1.0f))
+		float outOfRangeWeight = 0.05f;
+	
+	//겹치는 플랫폼이 있는지에 대한 가중치
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (UIMin = 0.0f, UIMax = 1.0f))
+		float overlappedWeight = 0.05f; 
+	
+	//플레이어가 도달 불가능한 플랫폼이 있는지에 대한 가중치
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (UIMin = 0.0f, UIMax = 1.0f))
+		float unreachableWeight = 0.3f; 
+	
+	//난이도가 적합하지 않은것에 대한 가중치
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (UIMin = 0.0f, UIMax = 1.0f))
+		float difficultyWeight = 0.6f; 
+};

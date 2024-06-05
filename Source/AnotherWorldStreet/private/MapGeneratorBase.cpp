@@ -108,7 +108,7 @@ void AMapGeneratorBase::RunGeneticAlgorithm()
 
 		//~~ 교차 및 Mutate~~
 		TArray<FMapInfoStruct> newChildList;
-		for (int32 cIdx = 1; cIdx < CurrentPopulationInfo.Population.Num() - 2; cIdx++)
+		for (int32 cIdx = 3; cIdx < CurrentPopulationInfo.Population.Num() - 2; cIdx++)
 		{
 			int32 tIdx = UKismetMathLibrary::RandomIntegerInRange(cIdx + 1, CurrentPopulationInfo.Population.Num() - 3);
 			FMapInfoStruct newChild = Crossover(CurrentPopulationInfo.Population[cIdx], CurrentPopulationInfo.Population[tIdx]);
@@ -141,14 +141,15 @@ float AMapGeneratorBase::CalculateFitness()
 {
 	//적합도는 반드시 낮아야한다. 좋지 않은 상황에서 더 더하는 방식
 	//적합도 계산 가중치 (도합 1), 높은 가중치 = 반드시 지켜져야하는 룰
-	const float outOfRangeWeight = 0.4f; //플랫폼이 파라미터로 지정한 범위 외부에 있는지에 대한 가중치
-	const float overlappedWeight = 0.2f; //겹치는 플랫폼이 있는지에 대한 가중치
-	const float unreachableWeight = 0.35f; //플레이어가 도달 불가능한 플랫폼이 있는지에 대한 가중치
-	const float difficultyWeight = 0.05f; //난이도가 적합하지 않은것에 대한 가중치
+	const float outOfRangeWeight = GAWeightInfo.outOfRangeWeight; //플랫폼이 파라미터로 지정한 범위 외부에 있는지에 대한 가중치
+	const float overlappedWeight = GAWeightInfo.overlappedWeight; //겹치는 플랫폼이 있는지에 대한 가중치
+	const float unreachableWeight = GAWeightInfo.unreachableWeight; //플레이어가 도달 불가능한 플랫폼이 있는지에 대한 가중치
+	const float difficultyWeight = GAWeightInfo.difficultyWeight; //난이도가 적합하지 않은것에 대한 가중치
 
-	const float outOfRangeValue = 999.0f;
-	const float overlappedValue = 200.0f;
-	const float unreachableValue = 99.0f;
+	const float outOfRangeValue = 100.0f;
+	const float overlappedValue = 100.0f;
+	const float unreachableValue = 9999.0f;
+	const float difficultyValue = 100.0f;
 
 	float bestFitness = FLT_MAX;
 	float avgFitness = 0.0f;
@@ -197,7 +198,7 @@ float AMapGeneratorBase::CalculateFitness()
 						continue;
 					}
 					errorValue = FMath::Min(errorThreshold, FMath::Abs(distance - LevelPerJumpDistThreshold[MapLevel]));
-					newFitness += (errorValue * difficultyWeight);
+					newFitness += (errorValue * difficultyWeight * difficultyValue);
 				}
 			}
 		}
@@ -218,11 +219,17 @@ void AMapGeneratorBase::SelectParents()
 	
 	//상위 n개를 고름
 	FPopulationStruct tempPopulation;
-	for (int32 idx = 0; idx < PopulationSize; idx++)
+	for (int32 idx = 0; idx < PopulationSize * ElitismRate; idx++)
 	{
 		tempPopulation.Population.Add(CurrentPopulationInfo.Population[idx]);
 	}
-	
+	while(tempPopulation.Population.Num() < PopulationSize)
+	{
+		int32 idx = UKismetMathLibrary::RandomInteger(CurrentPopulationInfo.Population.Num());
+		tempPopulation.Population.Add(CurrentPopulationInfo.Population[idx]);
+	}
+
+
 	tempPopulation.BestResultMap = tempPopulation.Population[0];
 	CurrentPopulationInfo = tempPopulation;
 }
@@ -236,16 +243,17 @@ FMapInfoStruct AMapGeneratorBase::Crossover(const FMapInfoStruct& G1, const FMap
 	{
 		FPlatformInfoStruct platform = G1.PlatformInfoList[g1Idx];
 		childMap.PlatformInfoList.Add(platform);
-		if (platform.PlatformTransform.GetLocation().Equals(MidLocation, 0.0f)) break;
+		if (G1.PlatformInfoList[g1Idx].PlatformType == EPlatformType::E_Mid) break;
 	}
 	
 	bool bIsFound = false;
 	for (; g2Idx < G2.PlatformInfoList.Num(); g2Idx++)
 	{
 		FPlatformInfoStruct platform = G2.PlatformInfoList[g2Idx];
-		if (platform.PlatformTransform.GetLocation().Equals(MidLocation, 0.0f))
+		if (platform.PlatformType == EPlatformType::E_Mid) 
 		{
 			bIsFound = true;
+			continue;
 		}
 		if (bIsFound)
 		{
@@ -269,23 +277,22 @@ bool AMapGeneratorBase::Mutate(FMapInfoStruct& child)
 	for (int32 idx = mutateStartIdx; idx <= mutateFinishIdx; idx++)
 	{
 		if (!child.PlatformInfoList.IsValidIndex(idx)) continue;
-		if (child.PlatformInfoList[idx].PlatformTransform.GetLocation() == midPoint) continue;
+		if (child.PlatformInfoList[idx].PlatformType != EPlatformType::E_None) continue;
 
 		FVector location = child.PlatformInfoList[idx].PlatformTransform.GetLocation();
-		if (location == MidLocation || location == StartLocation || location == EndLocation) continue;
-
+		
 		FVector extent = child.PlatformInfoList[idx].PlatformStaticMesh->GetBounds().BoxExtent;
 
 		location.X += UKismetMathLibrary::RandomFloatInRange(-1 * extent.X * MutationStrength, extent.X * MutationStrength);
 		location.Y += UKismetMathLibrary::RandomFloatInRange(-1 * extent.Y * MutationStrength, extent.Y * MutationStrength);
-		location.Z += UKismetMathLibrary::RandomFloatInRange(-1 * extent.Z * MutationStrength, extent.Z * MutationStrength);
+		location.Z += UKismetMathLibrary::RandomFloatInRange(-1 * extent.Z * MutationStrength, extent.Z * MutationStrength * 0.5f);
 		child.PlatformInfoList[idx].PlatformTransform.SetLocation(location);
 	}
 
 	return false;
 }
 
-void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
+void AMapGeneratorBase::Repair(FMapInfoStruct& Result, bool bForceApply)
 {
 	TArray<FPlatformInfoStruct> additionalPlatforms;
 	
@@ -304,7 +311,7 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 		if (!result)
 		{
 			//선형으로 채우기에 가까운 거리라면 채운다.
-			if (errorDist <= 1500.0f)
+			if (errorDist <= 2000.0f)
 			{
 				FVector direction = nextLocation - currLocation;
 				float length = direction.Length();
@@ -324,7 +331,7 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 			{
 				FPlatformInfoStruct& prev = Result.PlatformInfoList[idx - 1];
 				const FVector prevLocation = curr.PlatformTransform.GetLocation();
-				
+		
 				if (nextLocation != prevLocation && currLocation != MidLocation
 					&& currLocation != StartLocation && currLocation != EndLocation){
 					curr.PlatformTransform.SetLocation((nextLocation + prevLocation) / 2.0f);
@@ -359,17 +366,16 @@ void AMapGeneratorBase::Repair(FMapInfoStruct& Result)
 
 		bool result = GetIsOverlapped(curr, next);
 		
+
+		
 		//겹치면 제거한다
 		if (result)
 		{
 			if (idx == Result.PlatformInfoList.Num() - 1) continue;
-			else if (currLocation == MidLocation || currLocation == StartLocation || currLocation == EndLocation)
-			{
-				Result.PlatformInfoList.RemoveAt(idx+1);
-				idx += 1;
-				continue;
-			}
-			else Result.PlatformInfoList.RemoveAt(idx);
+			else if (Result.PlatformInfoList[idx].PlatformType != EPlatformType::E_None)
+				Result.PlatformInfoList.RemoveAt(idx + 1);
+			else
+				Result.PlatformInfoList.RemoveAt(idx);
 			idx -= 1;
 		}
 	}
@@ -379,7 +385,7 @@ void AMapGeneratorBase::InitPlatformMeshPointInfo()
 {
 	const float dx[8] = { -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0 };
 	const float dy[8] = { -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0 };
-	const float dz[8] = { -2.0, 1.0, 1.0, 1.0, -2.0, -2.0, -2.0, 1.0 };
+	const float dz[8] = { -1.5, 1.0, 1.0, 1.0, -1.5, -1.5, -1.5, 1.0 };
 	const float d[12] = { -0.5, 0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0, -0.5, -1.0, -1.0, -1.0 };
 
 	for (auto& mesh : PlatformMeshList)
@@ -407,6 +413,11 @@ void AMapGeneratorBase::InitPlatformMeshPointInfo()
 			FVector point = center + FVector(extent.X * dx[dir], extent.Y * dy[dir], extent.Z * dz[dir]);
 			pointsInfo.PointList.Add(point);
 		}
+		for (int32 dir = 0; dir < 8; dir++)
+		{
+			FVector point = center + FVector(extent.X * dx[dir], extent.Y * dy[dir], extent.Z * dz[dir]);
+			pointsInfo.PointList.Add(point);
+		}
 
 		PlatformMeshPointInfoMap.Add(mesh, pointsInfo);
 	}
@@ -417,8 +428,11 @@ void AMapGeneratorBase::SetInitialPopulation(TArray<FMapInfoStruct> MapInfoList)
 	FPlatformInfoStruct startInfo, finInfo, midInfo;
 	startInfo.PlatformStaticMesh = midInfo.PlatformStaticMesh = finInfo.PlatformStaticMesh = PlatformMeshList[0];
 	startInfo.PlatformTransform.SetLocation(StartLocation);
+	startInfo.PlatformType = EPlatformType::E_Start;
 	midInfo.PlatformTransform.SetLocation(MidLocation);
+	midInfo.PlatformType = EPlatformType::E_Mid;
 	finInfo.PlatformTransform.SetLocation(EndLocation);
+	finInfo.PlatformType = EPlatformType::E_End;
 	for (int32 idx = 0; idx < PopulationSize; idx++)
 	{
 		FMapInfoStruct& targetMap = MapInfoList[idx % MapInfoList.Num()];
@@ -553,20 +567,25 @@ bool AMapGeneratorBase::GetIsOverlapped(const FPlatformInfoStruct& P1, const FPl
 	TArray<FVector> p1Box = PlatformMeshPointInfoMap[P1.PlatformStaticMesh].PointList;
 	TArray<FVector> p2Box = PlatformMeshPointInfoMap[P2.PlatformStaticMesh].PointList;
 	
-	const FVector p2BeginPos = p2Box[0] + P2.PlatformTransform.GetLocation();
-	const FVector p2EndPos = p2Box[7] + P2.PlatformTransform.GetLocation();
+	const FVector A1 = p1Box[0] + P1.PlatformTransform.GetLocation();
+	const FVector A2 = p1Box[7] + P1.PlatformTransform.GetLocation();
+
+	const FVector B1 = p2Box[0] + P2.PlatformTransform.GetLocation();
+	const FVector B2 = p2Box[7] + P2.PlatformTransform.GetLocation();
 
 
-	for (int32 idxA = 0; idxA < 8; idxA++)
-	{
-		FVector p1Pos = p1Box[idxA] + P1.PlatformTransform.GetLocation();
-		
-		if (IsPointInsideCuboid(p2BeginPos, p2EndPos, p1Pos))
-		{
-			//UE_LOG(LogTemp, Warning, TEXT("p2: {%s, %s}, p1 : %s"), *p2BeginPos.ToString(), *p2EndPos.ToString(), *p1Pos.ToString());
-			return true;
-		}
-	}
+	// 직육면체 A의 최소 및 최대 좌표 계산
+	FVector AMin = FVector(FMath::Min(A1.X, A2.X), FMath::Min(A1.Y, A2.Y), FMath::Min(A1.Z, A2.Z));
+	FVector AMax = FVector(FMath::Max(A1.X, A2.X), FMath::Max(A1.Y, A2.Y), FMath::Max(A1.Z, A2.Z));
+
+	// 직육면체 B의 최소 및 최대 좌표 계산
+	FVector BMin = FVector(FMath::Min(B1.X, B2.X), FMath::Min(B1.Y, B2.Y), FMath::Min(B1.Z, B2.Z));
+	FVector BMax = FVector(FMath::Max(B1.X, B2.X), FMath::Max(B1.Y, B2.Y), FMath::Max(B1.Z, B2.Z));
+
+	// AABB 충돌 검사
+	bool bOverlapX = (AMin.X <= BMax.X) && (AMax.X >= BMin.X);
+	bool bOverlapY = (AMin.Y <= BMax.Y) && (AMax.Y >= BMin.Y);
+	bool bOverlapZ = (AMin.Z <= BMax.Z) && (AMax.Z >= BMin.Z);
 	
-	return false;
+	return bOverlapX && bOverlapY && bOverlapZ;
 }
