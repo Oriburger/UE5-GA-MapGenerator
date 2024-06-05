@@ -49,10 +49,13 @@ public:
 public:
 	//control point 랜덤 생성 함수
 	UFUNCTION()
-		FVector GenControlPoint();
+		FVector GenControlPoint(FVector start, FVector end);
 
 	UFUNCTION()
 		void GenBezierCurve(FVector Start, FVector End, int32 GenPointNum, int32 ControlPointNum);
+
+	UFUNCTION()
+		void GenPerlinBezier(FVector start, FVector end, int32 genPointNum, int32 controlPointNum);
 
 
 	UFUNCTION(BlueprintCallable, BlueprintPure)
@@ -73,6 +76,9 @@ protected:
 	//Fvector (Start, End) Location
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Location Setting")
 		FVector StartLoc;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Location Setting")
+		FVector MidLoc;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Location Setting")
 		FVector EndLoc;

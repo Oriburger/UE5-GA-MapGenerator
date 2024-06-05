@@ -8,7 +8,7 @@ public class AnotherWorldStreet : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "FastNoiseGenerator", "FastNoise" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 
